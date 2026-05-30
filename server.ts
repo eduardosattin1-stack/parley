@@ -962,6 +962,8 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
       console.log("[Server] Using Gemini 3.5 Flash for audio transcription...");
       const transResponse = await ai.models.generateContent({
         model: "gemini-3.5-flash",
+        // Allow a full verbatim transcript for long (~10 min) recordings.
+        config: { maxOutputTokens: 32768 },
         contents: [
           {
             inlineData: {
@@ -989,6 +991,9 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
       console.log("[Server] Using OpenAI GPT-4o-mini for analysis...");
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
+        // Max output headroom (gpt-4o-mini caps at 16384) so long (~10 min)
+        // transcripts don't get truncated into invalid JSON.
+        max_completion_tokens: 16384,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `RAW TRANSCRIPT TO ANALYZE:\n${transcriptTextForLlm}\n\n${inputContract}\n\n${promptText}` }
@@ -1113,7 +1118,10 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
         contents: contents,
         config: {
           systemInstruction: systemPrompt,
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          // Headroom so long (~10 min) transcripts aren't truncated mid-JSON.
+          // A truncated response makes the JSON.parse below throw -> request fails.
+          maxOutputTokens: 32768
         }
       });
       responseText = response.text || "";
