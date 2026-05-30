@@ -98,4 +98,4 @@ export interface ProjectMetric {
   duration: number; // total duration in minutes
 }
 
-export type ActiveTab = "home" | "record" | "projects" | "analytics" | "profile";
+export type ActiveTab = "home" | "record" | "projects" | "relations" | "analytics" | "profile";

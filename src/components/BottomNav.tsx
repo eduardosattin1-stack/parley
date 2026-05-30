@@ -1,5 +1,5 @@
 import { useMeetLog } from "../context/MeetingContext";
-import { Home, Mic, FolderOpen, BarChart2, User, Sparkles } from "lucide-react";
+import { Home, Mic, FolderOpen, BarChart2, User, Sparkles, Users } from "lucide-react";
 import { ActiveTab } from "../types";
 
 export default function BottomNav() {
@@ -9,6 +9,7 @@ export default function BottomNav() {
     { id: "home" as ActiveTab, label: "Feed", icon: Home },
     { id: "record" as ActiveTab, label: "Record", icon: Mic, highlight: true },
     { id: "projects" as ActiveTab, label: "Projects", icon: FolderOpen },
+    { id: "relations" as ActiveTab, label: "Relations", icon: Users },
     { id: "analytics" as ActiveTab, label: "Trends", icon: BarChart2 },
     { id: "profile" as ActiveTab, label: "Account", icon: User }
   ];

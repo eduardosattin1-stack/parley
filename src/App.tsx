@@ -9,6 +9,7 @@ import BottomNav from "./components/BottomNav";
 import HomeFeed from "./components/HomeFeed";
 import RecordView from "./components/RecordView";
 import ProjectsView from "./components/ProjectsView";
+import RelationsView from "./components/RelationsView";
 import AnalyticsView from "./components/AnalyticsView";
 import ProfileView from "./components/ProfileView";
 import MeetingDetail from "./components/MeetingDetail";
@@ -38,6 +39,8 @@ function ParleyAppContent() {
         return <RecordView />;
       case "projects":
         return <ProjectsView />;
+      case "relations":
+        return <RelationsView />;
       case "analytics":
         return <AnalyticsView />;
       case "profile":

@@ -4,7 +4,7 @@ import {
   ArrowLeft, Share2, FileDown, Trash2, CheckSquare, Square, Save,
   Plus, Edit3, X, Play, Pause, RefreshCw, Eye, Sparkles, UserPlus, Tag,
   Rewind, FastForward, ChevronRight, Mail, Clipboard, Printer, Send,
-  Brain, Heart, Smile, HelpCircle, Swords, BarChart3, HeartHandshake, Bot
+  Brain, Heart, Smile, HelpCircle, Swords, BarChart3, HeartHandshake, Bot, Users
 } from "lucide-react";
 import { Meeting, ActionItem, TranscriptSegment } from "../types";
 
@@ -70,7 +70,9 @@ export default function MeetingDetail() {
     targetTeams,
     autoSendTrello,
     targetTrello,
-    voiceSignature
+    voiceSignature,
+    ownerName,
+    setActiveTab: setGlobalTab
   } = useMeetLog();
 
   const meeting = meetings.find((m) => m.id === selectedMeetingId);
@@ -90,7 +92,7 @@ export default function MeetingDetail() {
   }
 
   // Segment Tabs: Summary & Topics, Action Items, Transcript
-  const [activeTab, setActiveTab] = useState<"summary" | "insights" | "actions" | "transcript">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "insights" | "relations" | "actions" | "transcript">("summary");
 
   // Analyst Persona Switcher: "assistant" | "reflections"
   const [analystPersona, setAnalystPersona] = useState<"assistant" | "reflections">("assistant");
@@ -1275,6 +1277,16 @@ export default function MeetingDetail() {
           AI Insights
         </button>
         <button
+          onClick={() => setActiveTab("relations")}
+          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+            activeTab === "relations"
+              ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
+              : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
+          }`}
+        >
+          Relations
+        </button>
+        <button
           onClick={() => setActiveTab("actions")}
           className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "actions"
@@ -2089,6 +2101,77 @@ export default function MeetingDetail() {
               </form>
             </div>
 
+          </div>
+        )}
+
+        {/* TAB: RELATIONS (who you talked to — auto-fed into the Relations hub) */}
+        {(activeTab === "relations" || window.matchMedia("print").matches) && (
+          <div className="space-y-4 animate-fadeIn" id="detail-tabbox-relations">
+            <div className="bg-brand-cream/10 dark:bg-brand-green-dark border border-brand-green/10 dark:border-brand-gold/10 rounded-2xl p-3.5 space-y-1">
+              <div className="flex items-center gap-1.5">
+                <Users size={13} className="text-brand-gold" />
+                <span className="text-[10px] uppercase font-extrabold tracking-widest text-brand-green dark:text-brand-gold font-mono">Relations Detected</span>
+              </div>
+              <p className="text-[10.5px] text-brand-green/60 dark:text-brand-cream/60 leading-normal">
+                People identified in this conversation. They're tracked automatically in your Relations hub with their full history over time.
+              </p>
+            </div>
+
+            {(() => {
+              const owner = (ownerName || "").trim().toLowerCase();
+              const people = (meeting.participantsInfo || []).filter((p) => {
+                const n = (p.name || "").trim();
+                if (!n) return false;
+                return (p.role || "").toLowerCase() !== "owner" && n.toLowerCase() !== owner;
+              });
+              if (people.length === 0) {
+                return (
+                  <p className="text-xs text-zinc-400 italic text-center py-8">
+                    No conversation partners were detected in this recording.
+                  </p>
+                );
+              }
+              const talkCount = (name: string) => {
+                const k = name.trim().toLowerCase();
+                return meetings.filter((mm) =>
+                  (mm.participantsInfo || []).some((pp) => (pp.name || "").trim().toLowerCase() === k)
+                ).length;
+              };
+              return (
+                <div className="space-y-3">
+                  {people.map((p, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 p-3.5 bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-2xl"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-brand-cream dark:bg-brand-green-dark border border-stone-300 dark:border-brand-gold/20 flex items-center justify-center shrink-0">
+                          <span className="text-xs font-black text-brand-green dark:text-brand-gold-bright">
+                            {(p.name || "?").charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <h5 className="text-xs font-bold text-brand-green dark:text-[#EEF0EA] truncate">{p.name}</h5>
+                          <p className="text-[10px] text-brand-green/55 dark:text-brand-cream/55 truncate">
+                            {p.role || "Conversation partner"}{p.share ? ` • ${p.share} share` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-black text-brand-green dark:text-brand-gold-bright">{talkCount(p.name)}</div>
+                        <div className="text-[8px] uppercase tracking-wider text-brand-green/45 dark:text-brand-cream/45 font-bold">talks</div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => { setSelectedMeetingId(null); setGlobalTab("relations"); }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-brand-green text-brand-cream hover:bg-[#152a1b] dark:bg-brand-gold dark:text-brand-green-dark dark:hover:bg-[#b0913c] rounded-xl text-[11px] font-extrabold uppercase tracking-wide transition-all cursor-pointer"
+                  >
+                    <Users size={13} /> Open Relations Hub
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         )}
 
