@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net Default Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Hardened Cryptographic Identity and Structural Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    // Project Validation Specification Guard
+    function isValidProject(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.color is string && data.color.size() > 0 && data.color.size() <= 50
+        && (!('description' in data) || (data.description is string && data.description.size() <= 500))
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
+        && data.userId == request.auth.uid;
+    }
+    
+    // Meeting Validation Specification Guard
+    function isValidMeeting(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.date is string && data.date.size() > 0 && data.date.size() <= 100
+        && data.durationSec is int && data.durationSec >= 0 && data.durationSec <= 3600
+        && data.project is string && data.project.size() > 0 && data.project.size() <= 100
+        && (!('summary' in data) || (data.summary is string && data.summary.size() <= 30000))
+        && (!('snapshot' in data) || (data.snapshot is string && data.snapshot.size() <= 3000))
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
+        && data.userId == request.auth.uid
+        && (!('isPending' in data) || data.isPending is bool)
+        && (!('isFailed' in data) || data.isFailed is bool);
+    }
+    
+    // -------------------------------------------------------------
+    // Nested Project Collections Rules Matcher
+    // -------------------------------------------------------------
+    match /users/{userId}/projects/{projectId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) 
+                    && isValidId(projectId) 
+                    && isValidProject(incoming())
+                    && incoming().createdAt == request.time;
+      allow update: if isOwner(userId) 
+                    && isValidId(projectId) 
+                    && isValidProject(incoming())
+                    && incoming().id == existing().id
+                    && incoming().userId == existing().userId
+                    && incoming().createdAt == existing().createdAt;
+      allow delete: if isOwner(userId) && isValidId(projectId);
+    }
+    
+    // -------------------------------------------------------------
+    // Nested Meeting Collections Rules Matcher
+    // -------------------------------------------------------------
+    match /users/{userId}/meetings/{meetingId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && isValidId(meetingId)
+                    && isValidMeeting(incoming())
+                    && incoming().createdAt == request.time;
+      allow update: if isOwner(userId)
+                    && isValidId(meetingId)
+                    && isValidMeeting(incoming())
+                    && incoming().id == existing().id
+                    && incoming().userId == existing().userId
+                    && incoming().createdAt == existing().createdAt;
+      allow delete: if isOwner(userId) && isValidId(meetingId);
+    }
+  }
+}

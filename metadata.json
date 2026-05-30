@@ -1,0 +1,1 @@
+{"name":"Parley","description":"A professional offline-first meeting and conversation recorder, transcribing and summarizing seamlessly with AI.","requestFramePermissions":["microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}

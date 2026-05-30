@@ -1,0 +1,54 @@
+name: Build iOS IPA (Unsigned)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Add and Sync iOS Platform
+        run: |
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Build Xcode Project (Unsigned)
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+                     -scheme App \
+                     -configuration Debug \
+                     -sdk iphoneos \
+                     -derivedDataPath build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     clean build
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Debug-iphoneos/App.app Payload/
+          zip -r Parley-Unsigned.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: parley-ios-debug
+          path: Parley-Unsigned.ipa

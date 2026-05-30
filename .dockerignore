@@ -1,0 +1,10 @@
+node_modules
+dist
+android
+.git
+.vscode
+.agents
+.antigravity
+debug_outputs
+*.apk
+*.log

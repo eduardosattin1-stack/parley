@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import "tailwindcss";
+
+/* =========================================================================
+   PARLEY DESIGN TOKENS — single source of truth for color.
+
+   The three themes (Forest / Charcoal / Chic) are now pure VARIABLE SWAPS.
+   No per-element overrides, no per-ID overrides, no hardcoded hex outside
+   this file. Change a value once and all three themes follow.
+
+   Use in components:
+     bg-canvas            page background
+     bg-surface           cards / raised content
+     bg-surface-muted     sunken / inset panels
+     border-line          hairline border
+     border-line-strong   hover / emphasis border
+     text-ink             primary text
+     text-ink-muted       secondary text
+     text-ink-subtle      captions / tertiary
+     text-accent / bg-accent / bg-accent-strong   gold accents
+     bg-primary / text-on-primary                 primary button (auto-flips per theme)
+
+   These replace the dark:/chic: duplication: write `bg-surface text-ink
+   border-line` ONCE and it themes automatically — no dark: prefix needed.
+   The legacy brand-* primitives still resolve, so migration is incremental.
+   ========================================================================= */
+
+@theme {
+  /* ---- Type ------------------------------------------------------------ */
+  --font-serif: "Playfair Display", "Lora", Georgia, serif;
+  --font-sans:  "Space Grotesk", "Inter", sans-serif;
+  --font-mono:  "JetBrains Mono", monospace;
+
+  /* ---- Brand primitives (kept for backward-compat with existing classes) */
+  --color-brand-green:       #1F3F28;
+  --color-brand-gold:        #C9A84C;
+  --color-brand-green-dark:  #0f1c13;
+  --color-brand-gold-bright: #d9bf73;
+  --color-brand-cream:       #EEF0EA;
+
+  /* ---- Semantic tokens — FOREST (light) is the default --------------- */
+  --color-canvas:        #EEF0EA;
+  --color-surface:       #FFFFFF;
+  --color-surface-muted: #E9ECE4;
+
+  --color-line:          rgba(31, 63, 40, 0.12);
+  --color-line-strong:   rgba(31, 63, 40, 0.28);
+
+  --color-ink:           #1F3F28;
+  --color-ink-muted:     #5B6B5E;
+  --color-ink-subtle:    #8A968C;
+
+  --color-accent:        #C9A84C;
+  --color-accent-strong: #B0913C;
+
+  --color-primary:       #1F3F28;   /* primary button fill  */
+  --color-on-primary:    #C9A84C;   /* text on that fill    */
+}
+
+/* Variant selectors so existing dark:/chic: utilities keep resolving. */
+@variant dark (&:where(.dark, .dark *));
+@variant chic (&:where(.chic, .chic *));
+
+/* -------------------------------------------------------------------------
+   CHARCOAL (dark) — same tokens, dark values. Cards sit DARKER than canvas.
+   ------------------------------------------------------------------------- */
+.dark {
+  --color-canvas:        #0f1c13;
+  --color-surface:       #060b08;
+  --color-surface-muted: #0c1610;
+
+  --color-line:          rgba(201, 168, 76, 0.12);
+  --color-line-strong:   rgba(201, 168, 76, 0.28);
+
+  --color-ink:           #EEF0EA;
+  --color-ink-muted:     rgba(238, 240, 234, 0.72);
+  --color-ink-subtle:    rgba(238, 240, 234, 0.50);
+
+  --color-accent:        #C9A84C;
+  --color-accent-strong: #d9bf73;
+
+  --color-primary:       #C9A84C;   /* primary flips to gold on dark */
+  --color-on-primary:    #0f1c13;
+}
+
+/* -------------------------------------------------------------------------
+   CHIC (chocolate / cappuccino) — remaps brand primitives AND semantic tokens
+   so the whole surface reads warm without touching components.
+   ------------------------------------------------------------------------- */
+.chic {
+  --color-brand-green:       #3D2314;
+  --color-brand-gold:        #B58A30;
+  --color-brand-green-dark:  #231209;
+  --color-brand-gold-bright: #C5A059;
+  --color-brand-cream:       #FAF4EE;
+
+  --color-canvas:        #FAF4EE;
+  --color-surface:       #FCFAF7;
+  --color-surface-muted: #F3E9DF;
+
+  --color-line:          #E6D2C0;
+  --color-line-strong:   #D8BFA6;
+
+  --color-ink:           #3D2314;
+  --color-ink-muted:     #6D5C54;
+  --color-ink-subtle:    #9A877C;
+
+  --color-accent:        #B58A30;
+  --color-accent-strong: #C5A059;
+
+  --color-primary:       #3D2314;
+  --color-on-primary:    #FAF4EE;
+
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* =========================================================================
+   ANIMATIONS
+   ========================================================================= */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* spin only while hovered — used by the "Request Permissions" refresh icon
+   (this class was referenced in ProfileView but never defined). */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin-hover:hover { animation: spin 0.8s linear infinite; }
+
+/* =========================================================================
+   SMALL UTILITIES the components already reference but were never defined
+   ========================================================================= */
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* bottom safe-area inset for the fixed nav on notched / gesture devices */
+.safe-bottom { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+
+/* =========================================================================
+   LEGACY SURFACE SHIM   ⚠️  TEMPORARY — delete entries as you migrate.
+
+   This is the ONLY remaining override layer. It maps the old surface classes
+   (bg-white, a few arbitrary hex values, the common dark card classes) onto
+   the new tokens so Charcoal & Chic look right BEFORE components are
+   converted. Everything here is token-driven — no hardcoded hex.
+
+   As you convert a screen to bg-surface / text-ink / border-line, remove its
+   classes from the selectors below. Target: this whole block reaches zero.
+   ========================================================================= */
+
+/* card surfaces */
+:where(.dark, .chic) .bg-white,
+:where(.dark, .chic) .bg-white\/70,
+:where(.dark, .chic) .bg-white\/50,
+:where(.dark, .chic) .bg-white\/30,
+.dark .bg-brand-green-dark\/80,
+.dark .bg-brand-green-dark\/60,
+.dark .bg-\[\#060b08\],
+.dark .bg-\[\#060b08\]\/50,
+.dark .bg-\[\#0D1810\]\/40,
+.dark .bg-\[\#122417\]\/80 {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-line);
+}
+
+/* sunken insets */
+.dark .bg-brand-green\/5,
+.chic .bg-\[\#f3ede4\],
+.chic .bg-\[\#FAF9F5\] {
+  background-color: var(--color-surface-muted) !important;
+}
+
+/* borders */
+.dark .border-brand-green\/10,
+.dark .border-brand-gold\/10,
+.dark .border-brand-gold\/15,
+.chic .border-stone-300,
+.chic .border-\[\#f3ede4\] {
+  border-color: var(--color-line) !important;
+}
+
+/* chic neutral text (zinc/stone greys read cold on the warm palette) */
+.chic .text-stone-900 { color: var(--color-ink) !important; }
+.chic .text-zinc-500,
+.chic .text-zinc-600,
+.chic .text-stone-700 { color: var(--color-ink-muted) !important; }
