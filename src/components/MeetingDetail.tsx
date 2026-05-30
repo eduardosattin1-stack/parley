@@ -90,7 +90,7 @@ export default function MeetingDetail() {
   }
 
   // Segment Tabs: Summary & Topics, Action Items, Transcript
-  const [activeTab, setActiveTab] = useState<"summary" | "actions" | "transcript">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "insights" | "actions" | "transcript">("summary");
 
   // Analyst Persona Switcher: "assistant" | "reflections"
   const [analystPersona, setAnalystPersona] = useState<"assistant" | "reflections">("assistant");
@@ -1265,6 +1265,16 @@ export default function MeetingDetail() {
           Summary & AI
         </button>
         <button
+          onClick={() => setActiveTab("insights")}
+          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+            activeTab === "insights"
+              ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
+              : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
+          }`}
+        >
+          AI Insights
+        </button>
+        <button
           onClick={() => setActiveTab("actions")}
           className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "actions"
@@ -1289,10 +1299,10 @@ export default function MeetingDetail() {
       {/* Main tab context sections */}
       <div className="space-y-4">
 
-        {/* TAB 1: SUMMARY */}
-        {(activeTab === "summary" || window.matchMedia("print").matches) && (
-          <div className="space-y-5 animate-fadeIn" id="detail-tabbox-summary">
-            
+        {/* TAB: AI INSIGHTS (Active AI Personas + reflections + AI-generated insights) */}
+        {(activeTab === "insights" || window.matchMedia("print").matches) && (
+          <div className="space-y-5 animate-fadeIn" id="detail-tabbox-insights">
+
             {/* ANALYST PERSONA FOCUS CONTROL CENTER */}
             {hasAnyReflection && (
               <div className="bg-brand-cream/10 dark:bg-brand-green-dark border border-brand-green/10 dark:border-brand-gold/10 p-3.5 rounded-2xl space-y-3 shadow-sm print:hidden" id="analyst-persona-control-center">
@@ -1351,7 +1361,7 @@ export default function MeetingDetail() {
                 </div>
               </div>
             )}
-            {hasAnyReflection && analystPersona === "reflections" ? (
+            {hasAnyReflection && analystPersona === "reflections" && (
               <div className="space-y-5 animate-fadeIn" id="stacked-reflections">
                 {/* Negotiation Coach Reflection */}
                 {meeting.reflectionNegotiation && negotiationCoach && (
@@ -1591,8 +1601,37 @@ export default function MeetingDetail() {
                   </>
                 ) : null}
               </div>
-            ) : (
-              /* STANDARD ASSISTANT EXECUTIVE PIPELINE */
+            )}
+
+            {/* AI Generated Insights — moved into the AI Insights tab */}
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
+              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles size={13} className="text-[#c1b5a5]" />
+                AI Generated Insights
+              </h4>
+              <div className="space-y-3">
+                {meeting.insights && meeting.insights.length > 0 ? (
+                  meeting.insights.map((insight, i) => (
+                    <div key={i} className="flex gap-3 text-xs bg-brand-cream/20 dark:bg-brand-green-dark border border-zinc-100 dark:border-zinc-800 p-3 rounded-xl">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-lg bg-brand-cream text-stone-900 border border-stone-300 text-[10px] font-bold shrink-0">
+                        {i + 1}
+                      </div>
+                      <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed font-normal">{insight}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex gap-3 text-xs bg-brand-cream/20 dark:bg-brand-green-dark border border-zinc-100 dark:border-zinc-800 p-3 rounded-xl">
+                    <p className="text-xs text-zinc-400 italic">No AI insights extracted for this transcript. Try recording or scanning a longer session.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1: SUMMARY */}
+        {(activeTab === "summary" || window.matchMedia("print").matches) && (
+          <div className="space-y-5 animate-fadeIn" id="detail-tabbox-summary">
               <>
                 {/* Echo Conversation Snapshot & Classification Banner */}
                 {meeting.snapshot && (
@@ -1742,43 +1781,6 @@ export default function MeetingDetail() {
               </div>
             )}
 
-            {/* Proposed Biometric & Voice Memory Updates */}
-            {meeting.memoryUpdates && meeting.memoryUpdates.length > 0 && (
-              <div className="bg-brand-cream/10 dark:bg-stone-900 p-4.5 rounded-2xl space-y-3.5 border border-stone-300 dark:border-stone-800" id="echo-memory-updates">
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
-                    <Mail size={14} className="text-stone-500 dark:text-zinc-400" />
-                    Proposed Voiceprint & Database Memory Updates
-                  </h4>
-                  <span className="text-[8px] bg-brand-cream text-stone-900 font-extrabold px-1.5 py-0.5 rounded border border-stone-300 uppercase font-mono shadow-sm">
-                    Pending Approval
-                  </span>
-                </div>
-                <p className="text-[10px] text-stone-500 dark:text-stone-400 dark:text-stone-400 leading-relaxed font-normal">
-                  The voiceprint verification pipeline detected possible modifications to speak bio-frequency characteristics or missing profiles. Sync now to align directories:
-                </p>
-                <ul className="space-y-1.5">
-                  {meeting.memoryUpdates.map((mu, i) => (
-                    <li key={i} className="text-xs text-zinc-700 dark:text-zinc-300 flex items-start gap-2 bg-white dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                      <span className="text-stone-400 dark:text-brand-cream mt-0.5 font-bold shrink-0">➔</span>
-                      <span className="leading-relaxed font-medium">{mu}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex justify-end pt-1">
-                  <button
-                    onClick={() => {
-                      triggerToast("Sync complete: Voice profiles and metrics successfully committed to the database!");
-                      updateMeetingPayload({ memoryUpdates: [] });
-                    }}
-                    className="px-3.5 py-1.5 bg-brand-cream hover:bg-[#eae0d2] text-stone-900 border border-stone-300 font-bold rounded-xl text-[9px] uppercase tracking-wider transition-all cursor-pointer shadow-sm"
-                  >
-                    Approve & Commit Profiles
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Topics Array */}
             <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
               <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest">
@@ -1792,30 +1794,6 @@ export default function MeetingDetail() {
                   </li>
                 ))}
               </ul>
-            </div>
-
-            {/* AI Strategic Insights */}
-            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-widest flex items-center gap-1.5">
-                <Sparkles size={13} className="text-[#c1b5a5]" />
-                AI Generated Insights
-              </h4>
-              <div className="space-y-3">
-                {meeting.insights && meeting.insights.length > 0 ? (
-                  meeting.insights.map((insight, i) => (
-                    <div key={i} className="flex gap-3 text-xs bg-brand-cream/20 dark:bg-brand-green-dark border border-zinc-100 dark:border-zinc-800 p-3 rounded-xl">
-                      <div className="flex items-center justify-center w-5 h-5 rounded-lg bg-brand-cream text-stone-900 border border-stone-300 text-[10px] font-bold shrink-0">
-                        {i + 1}
-                      </div>
-                      <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed font-normal">{insight}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex gap-3 text-xs bg-brand-cream/20 dark:bg-brand-green-dark border border-zinc-100 dark:border-zinc-800 p-3 rounded-xl">
-                    <p className="text-xs text-zinc-400 italic">No AI insights extracted for this transcript. Try recording or scanning a longer session.</p>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Next Touchpoints & Milestones */}
@@ -1840,51 +1818,7 @@ export default function MeetingDetail() {
               </div>
             </div>
 
-            {/* Multi tag center */}
-            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
-              <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
-                <Tag size={13} className="text-[#c1b5a5]" />
-                Tags Indexing
-              </h4>
-
-              {/* Tag badges map */}
-              <div className="flex flex-wrap gap-1.5">
-                {meeting.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="flex items-center gap-1 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-lg"
-                  >
-                    #{tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      title="Remove tag"
-                      className="hover:text-red-500 transition-colors shrink-0 print:hidden"
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-
-              {/* Form to append tags */}
-              <form onSubmit={handleAddTag} className="flex gap-1.5 print:hidden">
-                <input
-                  type="text"
-                  placeholder="e.g. SprintCheck, UIux"
-                  value={newTagStr}
-                  onChange={(e) => setNewTagStr(e.target.value)}
-                  className="flex-1 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 text-zinc-900 dark:text-zinc-100"
-                />
-                <button
-                  type="submit"
-                  className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-50 rounded-xl text-xs font-extrabold transition-all"
-                >
-                  Add Tag
-                </button>
-              </form>
-            </div>
               </>
-            )}
 
             {/* Executive summary block (Editable) */}
             <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
@@ -1982,6 +1916,16 @@ export default function MeetingDetail() {
                         platform: "google_spark",
                         title: "Google Spark: Publish decisions",
                         details: "Sync standup decisions to team channel board."
+                      },
+                      {
+                        platform: "slack",
+                        title: "Slack: Post decision summary",
+                        details: "Send the standup decisions to your team Slack channel."
+                      },
+                      {
+                        platform: "trello",
+                        title: "Trello: Create action cards",
+                        details: "Add each action item as a card on your project board."
                       }
                     ]).map((action, idx) => {
                       const key = `${action.platform}-${idx}`;
@@ -2063,6 +2007,87 @@ export default function MeetingDetail() {
                 </div>
               </div>
             )}
+
+            {/* Proposed Voiceprint & Database Memory Updates — img2 (moved to bottom) */}
+            {meeting.memoryUpdates && meeting.memoryUpdates.length > 0 && (
+              <div className="bg-brand-cream/10 dark:bg-stone-900 p-4.5 rounded-2xl space-y-3.5 border border-stone-300 dark:border-stone-800" id="echo-memory-updates">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
+                    <Mail size={14} className="text-stone-500 dark:text-zinc-400" />
+                    Proposed Voiceprint & Database Memory Updates
+                  </h4>
+                  <span className="text-[8px] bg-brand-cream text-stone-900 font-extrabold px-1.5 py-0.5 rounded border border-stone-300 uppercase font-mono shadow-sm">
+                    Pending Approval
+                  </span>
+                </div>
+                <p className="text-[10px] text-stone-500 dark:text-stone-400 dark:text-stone-400 leading-relaxed font-normal">
+                  The voiceprint verification pipeline detected possible modifications to speak bio-frequency characteristics or missing profiles. Sync now to align directories:
+                </p>
+                <ul className="space-y-1.5">
+                  {meeting.memoryUpdates.map((mu, i) => (
+                    <li key={i} className="text-xs text-zinc-700 dark:text-zinc-300 flex items-start gap-2 bg-white dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                      <span className="text-stone-400 dark:text-brand-cream mt-0.5 font-bold shrink-0">➔</span>
+                      <span className="leading-relaxed font-medium">{mu}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex justify-end pt-1">
+                  <button
+                    onClick={() => {
+                      triggerToast("Sync complete: Voice profiles and metrics successfully committed to the database!");
+                      updateMeetingPayload({ memoryUpdates: [] });
+                    }}
+                    className="px-3.5 py-1.5 bg-brand-cream hover:bg-[#eae0d2] text-stone-900 border border-stone-300 font-bold rounded-xl text-[9px] uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+                  >
+                    Approve & Commit Profiles
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tags Indexing — img4 (very bottom) */}
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
+              <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
+                <Tag size={13} className="text-[#c1b5a5]" />
+                Tags Indexing
+              </h4>
+
+              {/* Tag badges map */}
+              <div className="flex flex-wrap gap-1.5">
+                {meeting.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="flex items-center gap-1 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-lg"
+                  >
+                    #{tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      title="Remove tag"
+                      className="hover:text-red-500 transition-colors shrink-0 print:hidden"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Form to append tags */}
+              <form onSubmit={handleAddTag} className="flex gap-1.5 print:hidden">
+                <input
+                  type="text"
+                  placeholder="e.g. SprintCheck, UIux"
+                  value={newTagStr}
+                  onChange={(e) => setNewTagStr(e.target.value)}
+                  className="flex-1 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 text-zinc-900 dark:text-zinc-100"
+                />
+                <button
+                  type="submit"
+                  className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-50 rounded-xl text-xs font-extrabold transition-all"
+                >
+                  Add Tag
+                </button>
+              </form>
+            </div>
 
           </div>
         )}
