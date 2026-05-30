@@ -116,6 +116,36 @@ interface MeetingContextType {
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 
+async function ensureStoragePersisted(): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+    try {
+      const isPersisted = await navigator.storage.persisted();
+      if (!isPersisted) {
+        return await navigator.storage.persist();
+      }
+      return isPersisted;
+    } catch (e) {
+      console.warn("Storage persist check failed:", e);
+    }
+  }
+  return false;
+}
+
+async function hasSpaceFor(requiredBytes: number): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.estimate) {
+    try {
+      const { quota, usage } = await navigator.storage.estimate();
+      if (quota !== undefined && usage !== undefined) {
+        const remaining = quota - usage;
+        return remaining > requiredBytes;
+      }
+    } catch (e) {
+      console.warn("Storage estimate failed:", e);
+    }
+  }
+  return true;
+}
+
 const DEFAULT_PROJECTS: Project[] = [
   { id: "proj-alpha", name: "Alpha Web", color: "amber", description: "Vite React and mobile PWA developments" },
   { id: "proj-personal", name: "Personal", color: "pink", description: "Personal logistical support and family chats" }
@@ -1226,10 +1256,15 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     // 1. IMMEDIATELY SAVE THE BLOB IN INDEXEDDB SO IT'S NEVER LOST!
     if (audioBlob) {
       try {
+        await ensureStoragePersisted();
+        if (!(await hasSpaceFor(audioBlob.size))) {
+          triggerToast("Low device storage — free up space soon so recordings keep saving.", "warning");
+        }
         await saveAudioBlob(meetingId, audioBlob);
         console.log("Recorded sound chunk saved successfully inside local IndexedDB:", meetingId);
       } catch (e) {
         console.warn("Could not write record blob to IndexedDB:", e);
+        triggerToast("Couldn't save audio locally (storage full). Analysis will still run.", "error");
       }
     }
 
@@ -1493,9 +1528,23 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // When an external mic is explicitly selected (USB conference puck, wired
+      // lavalier, Bluetooth headset, etc.), turn OFF the browser's near-field
+      // voice-call DSP. Echo-cancellation / noise-suppression / auto-gain are
+      // tuned for a single close talker and gate out distant speakers in an
+      // open-room recording. Also request full-band stereo so the capture isn't
+      // silently down-sampled. (These are treated as "ideal" hints, so they
+      // never cause getUserMedia to fail if the device can't honour them.)
       if (targetDeviceId && targetDeviceId !== "default") {
         constraints = {
-          audio: { deviceId: { exact: targetDeviceId } }
+          audio: {
+            deviceId: { exact: targetDeviceId },
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            channelCount: 2,
+            sampleRate: 48000
+          }
         };
       }
 
@@ -1568,7 +1617,12 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       }
 
-      // Detect track settings to set active device label and active codec
+      // Detect track settings to set active device label and active codec.
+      // Pick an encode bitrate that matches the source quality: telephone-grade
+      // Bluetooth (SCO, 8-16 kHz mono) can't benefit from a high bitrate, but
+      // anything full-band gets 64 kbps for noticeably better far-field /
+      // multi-speaker transcription quality.
+      let targetBitrate = 64000;
       const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         const trackLabel = audioTrack.label || "Default Microphone";
@@ -1585,6 +1639,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
             setActiveCodec(`LC3 / BLE Audio (${sampleRate / 1000}kHz HD)`);
           } else {
             setActiveCodec("SCO / Mono (8-16kHz Dial-in)");
+            targetBitrate = 24000; // band-limited source — don't waste storage
           }
         } else {
           const sampleRate = audioTrack.getSettings().sampleRate;
@@ -1594,7 +1649,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
 
       const options = { 
         mimeType: "audio/webm",
-        audioBitsPerSecond: 24000
+        audioBitsPerSecond: targetBitrate
       };
       let recorder: MediaRecorder;
       try {
@@ -1670,10 +1725,15 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     const importTitle = title.trim() || `Imported: ${cleanFileName}`;
 
     try {
+      await ensureStoragePersisted();
+      if (!(await hasSpaceFor(file.size))) {
+        triggerToast("Low device storage — free up space soon so recordings keep saving.", "warning");
+      }
       await saveAudioBlob(meetingId, file);
       console.log("Imported sound file saved locally inside IndexedDB:", meetingId);
     } catch (err) {
       console.warn("Could not save imported file to IndexedDB:", err);
+      triggerToast("Couldn't save audio locally (storage full). Analysis will still run.", "error");
     }
 
     let approximateDuration = 60;
