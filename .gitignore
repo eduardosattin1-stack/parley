@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Antigravity IDE session cache (large, not needed)
+.antigravity/
