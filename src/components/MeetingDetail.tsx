@@ -246,9 +246,7 @@ export default function MeetingDetail() {
     (meeting.reflectionNegotiation && negotiationCoach) ||
     (meeting.reflectionPerformance && performanceReviewLens) ||
     (meeting.reflectionDebrief && difficultConversationDebrief) ||
-    (meeting.personalAssistantOutput && personalAssistant) ||
-    (meeting.id === "seed-alpha-standup" && ((cbtPsychologist && cbtProjects.includes("Alpha Web")) || negotiationCoach || performanceReviewLens || difficultConversationDebrief || personalAssistant)) ||
-    (meeting.id === "seed-dating-romantic" && ((cbtPsychologist && cbtProjects.includes("Personal")) || negotiationCoach || performanceReviewLens || difficultConversationDebrief || personalAssistant))
+    (meeting.personalAssistantOutput && personalAssistant)
   );
 
   useEffect(() => {
@@ -1498,129 +1496,6 @@ export default function MeetingDetail() {
                       })}
                     </div>
                   </div>
-                ) : (cbtPsychologist && cbtProjects.includes(meeting.project) && (meeting.id === "seed-alpha-standup" || meeting.id === "seed-dating-romantic")) ? (
-                  /* LEGACY HARDCODED CBT MOCKUP FOR DEFAULT SEED RECORDS */
-                  <>
-                    {/* Abstract assessment evaluation */}
-                    <div className="bg-brand-cream/10 border border-stone-300 dark:border-stone-800 p-4.5 rounded-2xl space-y-2.5">
-                      <div className="flex items-center gap-2">
-                        <Brain className="text-stone-500 dark:text-stone-400 dark:text-brand-cream" size={14} />
-                        <span className="text-[10px] uppercase font-extrabold tracking-widest text-[#c2b29f] font-mono">Therapeutic Abstract Assessment</span>
-                      </div>
-                      <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed italic pr-1 font-medium">
-                        {meeting.project === "Personal" ? (
-                          `"This meeting exhibits intense relational exhaustion buffered by abstract logistics. John demonstrates defensive avoidance, intellectualizing leisure hours to insulate his emotional energy from fatigue. Sarah exhibits an anxious/preemptive attachment style, seeking systemic reassurance by forcing scheduling decisions before co-regulating. This produces an interpersonal distortion loop as each push activates John's deflective shield."`
-                        ) : (
-                          `"Analyzing this team session reveals transactional defensiveness. Rather than addressing timeline uncertainty or capacity exhaustion directly, members buffer their stress within specialized tasks (e.g., Alex emphasizing waveform UI). Sarah uses 'Should' directives as control triggers to establish safety under developmental pacing noise. This limits cognitive flexibility, generating rigid polarization."`
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Traps and cognitive distortions mapped */}
-                    <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
-                      <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
-                        <Smile size={13} className="text-[#c1b5a5]" />
-                        Cognitive Distortions Trapped
-                      </h4>
-                      <div className="space-y-3 text-xs">
-                        {meeting.project === "Personal" ? (
-                          <>
-                            <div className="p-3 bg-brand-cream/10 rounded-xl border border-stone-300">
-                              <span className="font-extrabold text-stone-900 dark:text-stone-100">Mind Reading (Fearful Bias)</span>
-                              <p className="text-[10.5px] text-zinc-500 dark:text-brand-cream/70 mt-1 leading-relaxed">
-                                John assuming Sarah is disappointed with Saturday limits without confirming feelings. Triggers proactive social distancing.
-                              </p>
-                            </div>
-                            <div className="p-3 bg-brand-cream/10 rounded-xl border border-stone-300">
-                              <span className="font-extrabold text-stone-900 dark:text-stone-100">Polarization (All-or-Nothing)</span>
-                              <p className="text-[10.5px] text-zinc-500 dark:text-brand-cream/70 mt-1 leading-relaxed">
-                                Sarah viewing a busy Saturday schedule as the complete erasure of self-care rest, overlooking incremental/half-day recharge options.
-                              </p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="p-3 bg-stone-500/10 dark:bg-stone-500/5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                              <span className="font-extrabold text-zinc-800 dark:text-zinc-200">'Should' Statements (Timelines)</span>
-                              <p className="text-[10.5px] text-zinc-500 dark:text-brand-cream/70 mt-1 leading-relaxed">
-                                Sarah asserting Alex and David 'should' have core components ready perfectly, ignoring background container integration lag and fatigue.
-                              </p>
-                            </div>
-                            <div className="p-3 bg-stone-500/10 dark:bg-stone-500/5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                              <span className="font-extrabold text-zinc-800 dark:text-zinc-200">Discounting Positives</span>
-                              <p className="text-[10.5px] text-zinc-500 dark:text-brand-cream/70 mt-1 leading-relaxed">
-                                The team overlooking that static assets are 100% pre-cached to center anxiety entirely on background lock triggers.
-                              </p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Defensive mechanisms checklist */}
-                    <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 p-4 rounded-2xl space-y-3">
-                      <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-widest flex items-center gap-1.5">
-                        <Heart size={13} className="text-[#c1b5a5]" />
-                        Defensive Coping Patterns Mapped
-                      </h4>
-                      <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {meeting.project === "Personal" ? (
-                          <>
-                            <div className="py-2.5 first:pt-0 space-y-1">
-                              <span className="text-xs font-extrabold text-[#c2b29f]">Deflection Logics (Sarah)</span>
-                              <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-relaxed font-normal">Symptomatic displacement: Speaking about external family dates to avoid naming fear of emotional emptiness or disconnection.</p>
-                            </div>
-                            <div className="py-2.5 space-y-1">
-                              <span className="text-xs font-extrabold text-[#c2b29f]">Intellectualization (John)</span>
-                              <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-relaxed font-normal">Over-specifying agenda blocks, hours, and lists as a cognitive shield to avoid direct, vulnerable admission of work-based depletion.</p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="py-2.5 first:pt-0 space-y-1">
-                              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Compartmentalization (David)</span>
-                              <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-relaxed">Isolating the active service worker tests from standard team goals to prevent feeling collective pressure.</p>
-                            </div>
-                            <div className="py-2.5 space-y-1">
-                              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Vocal Pacing Speedup (Team)</span>
-                              <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-relaxed">Rapidly jumping on topics (vocal spikes) to lock conversational territory and avoid moments of silent team reflection.</p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Healing Communication Scripts */}
-                    <div className="bg-brand-cream/15 border border-stone-300 dark:border-stone-800 p-4.5 rounded-2xl space-y-3">
-                      <h4 className="text-xs font-bold text-stone-800 dark:text-stone-300 uppercase tracking-widest font-mono">
-                        🌿 Coregulating Discussion Script
-                      </h4>
-                      <p className="text-[10.5px] text-zinc-500 dark:text-brand-cream/70 leading-relaxed">
-                        De-escalate inter-personal pressure and restore attachment safety by utilizing these clinical validation scripts during follow-up sync conversations:
-                      </p>
-                      <div className="space-y-3 text-xs leading-relaxed">
-                        {meeting.project === "Personal" ? (
-                          <>
-                            <div className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                              <span className="text-[9px] font-bold text-[#c2b29f] block uppercase tracking-wide font-mono mb-1">Empathetic Attachment Script (John):</span>
-                              <span>"Sarah, I see how heavy this scheduling load feels, and how much you've been coordinating. I want to build a summer that makes us both feel rested. Can we hold off on agenda logistics for now and just sit quietly for a few minutes?"</span>
-                            </div>
-                            <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                              <span className="text-[9px] font-bold text-[#c2b29f] block uppercase tracking-wide font-mono mb-1">De-escalating Boundaring Response (Sarah):</span>
-                              <span>"Thank you for validating my depletion, John. Your quiet time is extremely important to me too. Let's guarantee Sunday afternoon as empty rest time, and we can say no to the Saturday party."</span>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                              <span className="text-[9px] font-bold text-zinc-400 block uppercase tracking-wide font-mono mb-1">Scrum De-pressurizing Prompt:</span>
-                              <span>"I detect we've been running at high pacing velocity, which creates cognitive overload. Before we align on task allocation lists, let's spend 3 minutes acknowledging our actual daily capacity levels in a safe, unjudged circle."</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </>
                 ) : null}
               </div>
             )}

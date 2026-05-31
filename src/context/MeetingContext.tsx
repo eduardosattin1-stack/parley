@@ -151,115 +151,14 @@ const DEFAULT_PROJECTS: Project[] = [
   { id: "proj-personal", name: "Personal", color: "pink", description: "Personal logistical support and family chats" }
 ];
 
-const DEFAULT_MEETINGS: Meeting[] = [
-  {
-    id: "seed-alpha-standup",
-    title: "Project Alpha Standup",
-    date: new Date(Date.now() - 4 * 3600000).toISOString(), // 4 hours ago
-    durationSec: 48,
-    project: "Alpha Web",
-    summary: "- Consolidated updates on the React 19 transition and off-line static assets caching.\n- Alex Chen is active finalizing Canvas waveforms calculations.\n- Confirmed Service Worker setup functions perfectly.",
-    snapshot: "The team consolidated updates on the React 19 transition and verified that HMR-free static pre-caching is active.",
-    classification: {
-      primary: "standup",
-      secondary: ["internal_meeting", "status_update"]
-    },
-    participantsInfo: [
-      { name: "Sarah Connor", role: "Frontend Lead", share: "35%", matchStatus: "Matched" },
-      { name: "David Miller", role: "PWA Engineer", share: "40%", matchStatus: "Matched" },
-      { name: "Alex Chen", role: "UI Designer", share: "25%", matchStatus: "Probable" }
-    ],
-    decisions: [
-      { decision: "Prioritize packaging the Service Worker before the client sync.", agreedBy: "Sarah Connor and team" }
-    ],
-    checklist: [
-      "Test Vite React 19 build deployment",
-      "Deploy production ingress proxies testing rigs",
-      "Verify PWA wake-lock stability trigger on Android"
-    ],
-    openQuestions: [
-      { question: "Whether background WebView limits standard timing triggers during extended lock states.", raisedBy: "David Miller" }
-    ],
-    topics: [
-      "Vite React 19 build deployment and assets packaging",
-      "Drafting and testing production ingress proxies",
-      "PWA performance testing on target devices"
-    ],
-    actionItems: [
-      { id: "act-1", task: "Prepare final build manifest for container hosting", assignee: "Sarah Connor", completed: false },
-      { id: "act-2", task: "Configure Service Worker background recording service", assignee: "David Miller", completed: true },
-      { id: "act-3", task: "Verify audio-level visualizer on standard Android WebView", assignee: "Alex Chen", completed: false }
-    ],
-    transcript: [
-      { id: "tr-1", speaker: "Sarah Connor", text: "Good morning everyone. Let us get updates on our React 19 deploy status.", timestamp: "00:01" },
-      { id: "tr-2", speaker: "David Miller", text: "I have updated our Vite configurations and verified that HMR overrides function properly off-line. Static assets are now pre-cached.", timestamp: "00:14" },
-      { id: "tr-3", speaker: "Alex Chen", text: "Excellent work. I am finalizing the Canvas visualizer for recording frequencies so the animations look smooth.", timestamp: "00:32" },
-      { id: "tr-4", speaker: "Sarah Connor", text: "Awesome. Let us prioritize packaging the Service Worker before our client sync today.", timestamp: "00:48" }
-    ],
-    tags: ["Daily Standup", "React 19", "Vite", "PWA"],
-    insights: [
-      "Transitioning to React 19 is essential to eliminate complex manual state cycles, enabling full native audio streaming. This will prevent multiple parallel rendering states from conflicting.",
-      "The current PWA container configuration handles background triggers correctly under the latest Android security restrictions. This ensures continuous foreground CPU lifecycle persistence."
-    ],
-    nextTouchpoints: [
-      "Team review next Tuesday on build pipeline performance benchmarks.",
-      "Sync call with Sarah Connor and product managers for PWA staging testing configurations."
-    ],
-    memoryUpdates: [
-      "David Miller: active transition to React 19 context (5th mention).",
-      "New person detected: Speaker 3 — propose database label 'Alex Chen'?"
-    ]
-  },
-  {
-    id: "seed-dating-romantic",
-    title: "Personal Logistics & Support",
-    date: new Date(Date.now() - 24 * 3600000).toISOString(), // Yesterday
-    durationSec: 51,
-    project: "Personal",
-    summary: "Yesterday we sat down and talked honestly about the summer schedule and how we've both been feeling overwhelmed lately. We agreed that instead of rushing to fit everything in, we need to protect our weekends. There was some anxiety about boundaries with family visits, but we validated each other's needs and left feeling much closer than before.",
-    snapshot: "An empathetic check-in addressing relational overwhelm, weekend schedules, and establishing shared boundaries with family visits.",
-    classification: {
-      primary: "dating_or_romantic",
-      secondary: ["emotional_support", "family_logistics"]
-    },
-    participantsInfo: [
-      { name: "Sarah", role: "Partner", share: "50%", matchStatus: "Matched" },
-      { name: "John", role: "Owner", share: "50%", matchStatus: "Matched" }
-    ],
-    decisions: [
-      { decision: "Maintain weekends as protected rest times instead of full itineraries.", agreedBy: "Sarah & John" }
-    ],
-    checklist: [],
-    openQuestions: [],
-    topics: [
-      "Scheduling summer events and holidays",
-      "Emotional load and boundary setting",
-      "Social battery limits"
-    ],
-    actionItems: [
-      { id: "act-4", task: "Decline the Saturday party invitation gently", assignee: "John", completed: false },
-      { id: "act-5", task: "Draft holiday itinerary proposal", assignee: "Sarah", completed: false }
-    ],
-    transcript: [
-      { id: "tr-5", speaker: "John", text: "I just feel like we haven't had a single quiet afternoon to ourselves in weeks.", timestamp: "00:05" },
-      { id: "tr-6", speaker: "Sarah", text: "I know exactly what you mean. The events are fun, but my battery is completely depleted too.", timestamp: "00:21" },
-      { id: "tr-7", speaker: "John", text: "Let's say no to the upcoming party and just stay in.", timestamp: "00:38" },
-      { id: "tr-8", speaker: "Sarah", text: "Yes, let's look after ourselves and rest.", timestamp: "00:46" }
-    ],
-    tags: ["Dating", "Relational", "Support", "Boundaries"],
-    insights: [
-      "Sarah agreed immediately to weekend downtime without any pressure or hesitation. This indicates high relational alignment and shared exhaustion levels.",
-      "There was a brief silence when discussing family dates. It might be helpful to address scheduling boundaries in small steps."
-    ],
-    nextTouchpoints: [
-      "Quiet weekend planning check-in next Friday morning.",
-      "Draft a message to family about the summer window."
-    ],
-    memoryUpdates: [
-      "Sarah: tone baseline updated (+8 mins sample, very warm and cooperative)."
-    ]
-  }
-];
+// Real data only — no seeded/mock meetings. The app starts empty and fills
+// with the user's own analysed recordings.
+const DEFAULT_MEETINGS: Meeting[] = [];
+
+// One-time cleanup: drop the old seeded/demo meetings that earlier builds
+// persisted into localStorage, so existing installs also lose the mock data.
+const stripSeedMeetings = (list: Meeting[]): Meeting[] =>
+  Array.isArray(list) ? list.filter((m) => !(m && typeof m.id === "string" && m.id.startsWith("seed-"))) : [];
 
 export function MeetingProvider({ children }: { children: ReactNode }) {
   // Theme state
@@ -688,7 +587,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem("parley-meetings-v2") || localStorage.getItem("meetlog-meetings-v2");
     if (saved) {
       try {
-        const list: Meeting[] = JSON.parse(saved);
+        const list: Meeting[] = stripSeedMeetings(JSON.parse(saved));
         return list.map(m => m.isPending ? { ...m, isPending: false, isFailed: true, summary: "The transcription analysis was interrupted (the app might have been closed or suspended). Play the audio or click 'Retry AI Transcription' below." } : m);
       } catch (e) {
         console.error("Failed to parse saved meetings", e);
@@ -769,7 +668,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         setProjects(savedProjects ? JSON.parse(savedProjects) : DEFAULT_PROJECTS);
         if (savedMeetings) {
           try {
-            const list: Meeting[] = JSON.parse(savedMeetings);
+            const list: Meeting[] = stripSeedMeetings(JSON.parse(savedMeetings));
             setMeetings(list.map(m => m.isPending ? { ...m, isPending: false, isFailed: true, summary: "The transcription analysis was interrupted (the app might have been closed or suspended). Play the audio or click 'Retry AI Transcription' below." } : m));
           } catch (e) {
             setMeetings(DEFAULT_MEETINGS);
@@ -904,7 +803,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       const savedProjects = localStorage.getItem("parley-projects-v2") || localStorage.getItem("meetlog-projects-v2");
       const savedMeetings = localStorage.getItem("parley-meetings-v2") || localStorage.getItem("meetlog-meetings-v2");
       const localProjs: Project[] = savedProjects ? JSON.parse(savedProjects) : DEFAULT_PROJECTS;
-      const localMeets: Meeting[] = savedMeetings ? JSON.parse(savedMeetings) : DEFAULT_MEETINGS;
+      const localMeets: Meeting[] = savedMeetings ? stripSeedMeetings(JSON.parse(savedMeetings)) : DEFAULT_MEETINGS;
 
       // Batch upload projects
       for (const proj of localProjs) {

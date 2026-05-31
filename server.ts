@@ -692,20 +692,15 @@ app.post("/api/analyze", async (req, res) => {
     const parsedDuration = Number(durationSec || 0);
     console.log(`[Server] Received /api/analyze request - Title: "${title}", Project: "${project}", Duration: ${parsedDuration}s`);
 
-    // If audioData is absent or recording duration is extremely low, directly bypass Gemini and return explicit empty state
+    // No audio or a recording too short to transcribe — fail honestly, never fabricate.
     if (!audioData || parsedDuration < 4) {
-      const fallback = generateBackupResult(title || "New Recording", project, parsedDuration, true, cbtPsychologist, negotiationCoach, performanceReviewLens, difficultConversationDebrief, personalAssistant);
-      saveDebugOutput(title || "New Recording", audioData, mimeType, fallback);
-      return res.json(fallback);
+      return res.json({ error: "No audio was captured (or the recording was under 4 seconds), so there is nothing to transcribe." });
     }
 
-    // Check if the developer has the Gemini Key configured
+    // No real AI key configured — refuse to return simulated/mock analysis.
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
-      console.warn("GEMINI_API_KEY not set. Using simulation backend with duration safety.");
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Short simulation lag
-      const fallback = generateBackupResult(title || "New Recording", project, parsedDuration, false, cbtPsychologist, negotiationCoach, performanceReviewLens, difficultConversationDebrief, personalAssistant);
-      saveDebugOutput(title || "New Recording", audioData, mimeType, fallback);
-      return res.json(fallback);
+      console.warn("GEMINI_API_KEY not set — refusing to return simulated analysis.");
+      return res.json({ error: "AI transcription is not configured on this server (no GEMINI_API_KEY). Set a real key on the backend to analyse recordings." });
     }
 
     // Write chunked headers immediately to keep the connection alive

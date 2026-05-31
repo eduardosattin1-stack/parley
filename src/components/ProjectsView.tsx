@@ -1,7 +1,188 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useMeetLog } from "../context/MeetingContext";
-import { Folder, FolderPlus, Trash2, Tag, Clock, Calendar, ChevronRight, X, Sparkles, TrendingUp, Smile, Heart, Brain, AlertCircle, Sparkle, FileUp, Plus } from "lucide-react";
+import { Folder, FolderPlus, Trash2, Tag, Clock, Calendar, ChevronRight, X, Sparkles, TrendingUp, FileUp, Plus, Users, CheckSquare, ArrowLeft, MessageSquare } from "lucide-react";
 import { Project, Meeting } from "../types";
+
+/**
+ * Dedicated AI Synthesis sub-page for a folder. Everything here is computed
+ * live from the folder's real meetings — participants, tags, action items,
+ * decisions, conversation types, collected insights. No placeholder content.
+ * Kept off the main folder view so it doesn't crowd the UI while we learn
+ * whether it earns its place.
+ */
+function FolderSynthesisPage({
+  folderName,
+  meetings,
+  onBack,
+  onOpenMeeting,
+}: {
+  folderName: string;
+  meetings: Meeting[];
+  onBack: () => void;
+  onOpenMeeting: (id: string) => void;
+}) {
+  const conversationCount = meetings.length;
+  const totalMin = Math.round(meetings.reduce((a, m) => a + (m.durationSec || 0), 0) / 60);
+
+  const peopleMap = new Map<string, number>();
+  meetings.forEach((m) =>
+    (m.participantsInfo || []).forEach((p) => {
+      const n = (p.name || "").trim();
+      if (!n || (p.role || "").toLowerCase() === "owner") return;
+      peopleMap.set(n, (peopleMap.get(n) || 0) + 1);
+    })
+  );
+  const people = [...peopleMap.entries()].sort((a, b) => b[1] - a[1]);
+
+  const tagMap = new Map<string, number>();
+  meetings.forEach((m) => (m.tags || []).forEach((t) => tagMap.set(t, (tagMap.get(t) || 0) + 1)));
+  const topTags = [...tagMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const maxTag = topTags.length ? topTags[0][1] : 1;
+
+  let openAI = 0;
+  let doneAI = 0;
+  meetings.forEach((m) => (m.actionItems || []).forEach((a) => (a.completed ? doneAI++ : openAI++)));
+  const totalAI = openAI + doneAI;
+
+  const decisionsCount = meetings.reduce((a, m) => a + (m.decisions?.length || 0), 0);
+
+  const typeMap = new Map<string, number>();
+  meetings.forEach((m) => {
+    const t = m.classification?.primary;
+    if (t) typeMap.set(t, (typeMap.get(t) || 0) + 1);
+  });
+  const types = [...typeMap.entries()].sort((a, b) => b[1] - a[1]);
+
+  const insights = meetings.flatMap((m) => (m.insights || []).map((text) => ({ text, title: m.title, id: m.id })));
+
+  const stat = (label: string, value: string | number, Icon: any) => (
+    <div className="bg-white dark:bg-brand-green-dark/50 p-3 rounded-2xl border border-brand-green/10 dark:border-brand-gold/10 space-y-1">
+      <div className="flex items-center gap-1.5 text-brand-gold">
+        <Icon size={13} />
+        <span className="text-[9px] font-mono tracking-wider font-extrabold text-brand-green/50 dark:text-brand-cream/50 uppercase">{label}</span>
+      </div>
+      <div className="text-xl font-black text-brand-green dark:text-[#EEF0EA]">{value}</div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5 animate-fadeIn" id="folder-synthesis-page">
+      <div className="flex items-center justify-between border-b border-brand-green/10 dark:border-brand-gold/10 pb-3">
+        <button onClick={onBack} className="flex items-center gap-1 text-xs text-brand-green/60 dark:text-brand-cream/60 hover:text-brand-green dark:hover:text-brand-cream font-bold cursor-pointer">
+          <ArrowLeft size={14} /> Back to folder
+        </button>
+        <span className="text-xs font-extrabold tracking-tight text-stone-900 bg-brand-cream px-3 py-1 rounded-full border border-stone-300 shadow-sm">
+          {folderName}
+        </span>
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-brand-gold" />
+          <h2 className="text-lg font-extrabold tracking-tight text-brand-green dark:text-[#EEF0EA]">Folder AI Synthesis</h2>
+        </div>
+        <p className="text-[11px] text-brand-green/60 dark:text-brand-cream/60">
+          Computed live from {conversationCount} conversation{conversationCount !== 1 ? "s" : ""} in this folder — no placeholders.
+        </p>
+      </div>
+
+      {conversationCount === 0 ? (
+        <p className="text-xs text-brand-green/50 dark:text-brand-cream/50 italic py-10 text-center bg-brand-green/5 dark:bg-brand-green-dark/60 rounded-2xl border border-dashed border-brand-green/10 dark:border-brand-gold/15">
+          No conversations in this folder yet. Synthesis appears once recordings are analysed here.
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {stat("Conversations", conversationCount, MessageSquare)}
+            {stat("Total time", `${totalMin}m`, Clock)}
+            {stat("People", people.length, Users)}
+            {stat("Decisions", decisionsCount, Sparkles)}
+          </div>
+
+          {totalAI > 0 && (
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
+                  <CheckSquare size={13} className="text-brand-gold" /> Action Items
+                </h4>
+                <span className="text-[10px] text-brand-green/60 dark:text-brand-cream/60 font-bold">{doneAI}/{totalAI} done</span>
+              </div>
+              <div className="w-full h-2 bg-brand-green/10 dark:bg-brand-green-dark/60 rounded-full overflow-hidden">
+                <div className="h-full bg-brand-gold rounded-full" style={{ width: `${Math.round((doneAI / totalAI) * 100)}%` }} />
+              </div>
+              <p className="text-[10px] text-brand-green/55 dark:text-brand-cream/55">{openAI} open · {doneAI} completed across the folder</p>
+            </div>
+          )}
+
+          {people.length > 0 && (
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-2xl p-4 space-y-2.5">
+              <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
+                <Users size={13} className="text-brand-gold" /> People in this folder
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {people.map(([name, count]) => (
+                  <span key={name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-green/5 dark:bg-brand-green-dark/60 border border-brand-green/10 dark:border-brand-gold/10 text-[11px] text-brand-green dark:text-brand-cream font-medium">
+                    {name}<span className="text-brand-gold font-bold">×{count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {topTags.length > 0 && (
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-2xl p-4 space-y-2.5">
+              <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
+                <Tag size={13} className="text-brand-gold" /> Most-used tags
+              </h4>
+              <div className="space-y-1.5">
+                {topTags.map(([tag, count]) => (
+                  <div key={tag} className="flex items-center gap-2">
+                    <span className="text-[11px] text-brand-green/70 dark:text-brand-cream/70 w-24 shrink-0 truncate font-mono">#{tag}</span>
+                    <div className="flex-1 h-1.5 bg-brand-green/10 dark:bg-brand-green-dark/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-brand-gold rounded-full" style={{ width: `${Math.round((count / maxTag) * 100)}%` }} />
+                    </div>
+                    <span className="text-[10px] text-brand-green/50 dark:text-brand-cream/50 w-5 text-right">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {types.length > 0 && (
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-2xl p-4 space-y-2.5">
+              <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
+                <TrendingUp size={13} className="text-brand-gold" /> Conversation types
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {types.map(([t, count]) => (
+                  <span key={t} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-gold/10 border border-brand-gold/20 text-[11px] text-brand-green dark:text-brand-cream font-medium capitalize">
+                    {t.replace(/_/g, " ")}<span className="text-brand-gold font-bold">×{count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {insights.length > 0 && (
+            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-2xl p-4 space-y-2.5">
+              <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
+                <Sparkles size={13} className="text-brand-gold" /> Insights collected ({insights.length})
+              </h4>
+              <div className="space-y-2">
+                {insights.map((ins, i) => (
+                  <button key={i} onClick={() => onOpenMeeting(ins.id)} className="w-full text-left p-2.5 bg-brand-green/[0.03] dark:bg-brand-green-dark/60 rounded-xl border border-brand-green/10 dark:border-brand-gold/10 hover:border-brand-gold/30 transition-all cursor-pointer">
+                    <p className="text-[11px] text-brand-green/75 dark:text-brand-cream/75 leading-relaxed">{ins.text}</p>
+                    <span className="text-[9px] text-brand-green/45 dark:text-brand-cream/45 font-mono uppercase tracking-wider mt-1 block">{ins.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function ProjectsView() {
   const { projects, meetings, addProject, deleteProject, setSelectedMeetingId, handleDirectAudioImport } = useMeetLog();
@@ -14,25 +195,7 @@ export default function ProjectsView() {
 
   // Filter/Browsing state
   const [browsingProjectName, setBrowsingProjectName] = useState<string | null>(null);
-  const [synthesisMode, setSynthesisMode] = useState<"executive" | "psychology">("executive");
-  const [isCbtActive, setIsCbtActive] = useState<boolean>(true);
-
-  useEffect(() => {
-    if (!browsingProjectName) {
-      setIsCbtActive(false);
-      return;
-    }
-    const cbtEnabled = localStorage.getItem("meetlog-cbt-enabled") !== "false";
-    const savedProjectsStr = localStorage.getItem("meetlog-cbt-projects");
-    const cbtProjects = savedProjectsStr ? JSON.parse(savedProjectsStr) : ["Personal"];
-    
-    const active = cbtEnabled && cbtProjects.includes(browsingProjectName);
-    setIsCbtActive(active);
-    
-    if (!active && synthesisMode === "psychology") {
-      setSynthesisMode("executive");
-    }
-  }, [browsingProjectName]);
+  const [synthesisFolder, setSynthesisFolder] = useState<string | null>(null);
 
   const getMeetingsForProject = (projName: string) => {
     return meetings.filter((m) => m.project === projName);
@@ -198,8 +361,16 @@ export default function ProjectsView() {
         </div>
       )}
 
-      {browsingProjectName ? (
-        /* BROWSING SPECIFIC PROJECT VIEW LIST with AI Synthesis Hub */
+      {synthesisFolder ? (
+        /* DEDICATED AI SYNTHESIS SUB-PAGE — real metrics computed from the folder's meetings */
+        <FolderSynthesisPage
+          folderName={synthesisFolder}
+          meetings={getMeetingsForProject(synthesisFolder)}
+          onBack={() => setSynthesisFolder(null)}
+          onOpenMeeting={setSelectedMeetingId}
+        />
+      ) : browsingProjectName ? (
+        /* BROWSING SPECIFIC PROJECT VIEW LIST */
         <div className="space-y-6">
           <div className="flex items-center justify-between border-b border-brand-green/10 dark:border-brand-gold/10 pb-3">
             <button
@@ -237,160 +408,25 @@ export default function ProjectsView() {
             </label>
           </div>
 
-          {/* FOLDER SYNTHESIS BENTO CONTAINER */}
-          {getMeetingsForProject(browsingProjectName).length > 0 ? (
-            <div className="bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-3xl p-5 space-y-4 shadow-sm" id="folder-synthesis-hub">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-brand-green/10 dark:border-brand-gold/10">
+          {/* AI Synthesis entry — opens the dedicated synthesis sub-page (real data, kept off the main folder view) */}
+          {getMeetingsForProject(browsingProjectName).length > 0 && (
+            <button
+              onClick={() => setSynthesisFolder(browsingProjectName)}
+              className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 hover:border-brand-gold/30 hover:shadow-sm transition-all text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-brand-gold/10 text-brand-gold shrink-0">
+                  <Sparkles size={15} />
+                </div>
                 <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={15} className="text-brand-gold animate-pulse" />
-                    <h3 className="text-xs uppercase font-extrabold tracking-widest text-brand-green dark:text-[#EEF0EA]">
-                      Folder AI Synthesis Hub
-                    </h3>
-                  </div>
-                  <p className="text-[10px] text-brand-green/60 dark:text-brand-cream/60">Cross-meeting trends, sentiment, & relational dynamics</p>
+                  <h3 className="text-xs uppercase font-extrabold tracking-widest text-brand-green dark:text-[#EEF0EA]">Folder AI Synthesis</h3>
+                  <p className="text-[10px] text-brand-green/60 dark:text-brand-cream/60">
+                    Real cross-meeting stats from {getMeetingsForProject(browsingProjectName).length} conversation{getMeetingsForProject(browsingProjectName).length !== 1 ? "s" : ""}
+                  </p>
                 </div>
-
-                {/* Sub-tab Switchers - Executive vs CBT Therapist */}
-                {isCbtActive && (
-                  <div className="flex bg-brand-green/5 dark:bg-brand-green-dark/60 p-0.5 rounded-xl border border-brand-green/10 dark:border-brand-gold/10 shrink-0">
-                    <button
-                      onClick={() => setSynthesisMode("executive")}
-                      className={`px-3 py-1 text-[10px] uppercase font-extrabold rounded-lg transition-all ${
-                        synthesisMode === "executive"
-                          ? "bg-white dark:bg-brand-green-dark text-stone-900 dark:text-brand-cream shadow-sm"
-                          : "text-brand-green/60 hover:text-brand-green dark:text-brand-cream/50 dark:hover:text-brand-cream"
-                      }`}
-                    >
-                      Executive Trends
-                    </button>
-                    <button
-                      onClick={() => setSynthesisMode("psychology")}
-                      className={`px-3 py-1 text-[10px] uppercase font-extrabold rounded-lg transition-all flex items-center gap-1 ${
-                        synthesisMode === "psychology"
-                          ? "bg-white dark:bg-brand-green-dark text-[#c2b29f] dark:text-brand-cream shadow-sm font-black"
-                          : "text-brand-green/60 hover:text-[#c2b29f] dark:text-brand-cream/50"
-                      }`}
-                    >
-                      <Brain size={11} /> CBT Therapist
-                    </button>
-                  </div>
-                )}
               </div>
-
-              {synthesisMode === "executive" ? (
-                /* EXECUTIVE SYNC TREND PANEL */
-                <div className="space-y-4 animate-fadeIn" id="folder-executive-trends">
-                  {/* Metric Block */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-white dark:bg-brand-green-dark/50 p-3.5 rounded-2xl border border-brand-green/10 dark:border-brand-gold/10 space-y-2">
-                       <span className="text-[9px] font-mono tracking-wider font-extrabold text-brand-green/50 dark:text-brand-cream/50 uppercase">Alignment Level</span>
-                       <div className="flex items-baseline gap-1.5">
-                         <span className="text-2xl font-black text-brand-green dark:text-[#EEF0EA]">84%</span>
-                         <span className="text-[10px] text-brand-green/60 dark:text-brand-cream/60 font-bold">Stable Convergence</span>
-                       </div>
-                       <div className="w-full h-1.5 bg-brand-green/10 dark:bg-brand-green-dark/60 rounded-full overflow-hidden">
-                         <div className="h-full bg-brand-gold rounded-full" style={{ width: "84%" }} />
-                       </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-brand-green-dark/50 p-3.5 rounded-2xl border border-brand-green/10 dark:border-brand-gold/10 space-y-2">
-                      <span className="text-[9px] font-mono tracking-wider font-extrabold text-brand-green/50 dark:text-brand-cream/50 uppercase">Aggregated Sentiment</span>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-brand-gold dark:text-brand-cream">Optimal</span>
-                        <span className="text-[10px] text-brand-green/60 dark:text-brand-cream/60 font-bold">Collaborative Warmth</span>
-                      </div>
-                      <div className="flex gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <div key={i} className={`h-1.5 flex-1 rounded-full ${i < 4 ? "bg-brand-gold" : "bg-brand-green/10 dark:bg-brand-green-dark/60"}`} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Vocal Tone Shifts section */}
-                  <div className="space-y-2 p-3.5 bg-white dark:bg-brand-green-dark/40 rounded-2xl border border-brand-green/10 dark:border-brand-gold/10">
-                    <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
-                      <TrendingUp size={12} className="text-brand-gold" />
-                      Vocal Tone Over-Time Evolution
-                    </h4>
-                    <p className="text-xs text-brand-green/70 dark:text-brand-cream/70 leading-relaxed font-normal">
-                      Vocal pitch checks show a notable stabilizing shift. In early sessions of this directory, we detected average vocal tempo at <strong>148 words per minute (WPM) with higher micro-frequency volume spikes</strong> (indicative of subtle conversational interrupts, timeline pressure and stress). Recent recordings show deceleration to a calm, secure <strong>122 WPM with elongated pauses, matching mutual agreement nodes</strong>.
-                    </p>
-                  </div>
-
-                  {/* Inter-session strategic misalignments */}
-                  <div className="space-y-2.5 p-3.5 bg-white dark:bg-brand-green-dark/40 rounded-2xl border border-brand-green/10 dark:border-brand-gold/10">
-                    <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-brand-green dark:text-[#EEF0EA] flex items-center gap-1.5">
-                      <AlertCircle size={12} className="text-rose-500" />
-                      Strategic Misalignments Plotted
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="p-2.5 bg-brand-green/5 dark:bg-brand-green-dark/60 rounded-xl border-l-2 border-brand-gold font-semibold text-brand-green dark:text-[#EEF0EA]">
-                        <div className="text-[9px] text-brand-gold uppercase tracking-wider font-mono">Velocity vs Burnout Threshold</div>
-                        Sarah prioritizes fast operational iteration (35% speak share emphasizing timelines), whereas physical fatigue and social recharge barriers were flagged on John's side.
-                      </div>
-                      <div className="p-2.5 bg-brand-green/5 dark:bg-brand-green-dark/60 rounded-xl border-l-2 border-brand-gold font-semibold text-brand-green dark:text-[#EEF0EA]">
-                        <div className="text-[9px] text-brand-gold uppercase tracking-wider font-mono">External Boundaring Anxiety</div>
-                        Friction points are triggered during family appointment scheduling delays, revealing minor unshared assumptions about how leisure time should be ring-fenced.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* COGNITIVE BEHAVIORAL THERAPIST/PSYCHOLOGIST FOLDER EVALUATION */
-                <div className="space-y-4 animate-fadeIn" id="folder-psychology-trends">
-                  {/* Relational Summary */}
-                  <div className="bg-brand-gold/5 border border-brand-gold/20 dark:border-brand-gold/15 p-4 rounded-2xl space-y-2">
-                    <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-brand-gold dark:text-brand-cream flex items-center gap-1.5 font-mono">
-                      <Heart size={12} />
-                      Therapist's Aggregate Directory Diagnosis
-                    </h4>
-                    <p className="text-xs text-brand-green/80 dark:text-brand-cream/80 leading-relaxed italic pr-2 font-medium">
-                      "Analyzing the combined language in this folder reveals a highly cooperative dyad that is vulnerable to burnout. A core pattern manifests where both parties adopt an 'All-or-Nothing' frame when discussing resource allocation. Underneath scheduling stress lies a subtle fearful-avoidant loop: John deflects via intellectual scheduling logic, while Sarah over-steps boundaries to enforce safety. The core therapeutic prescription is practicing the 'Emotional Safety Hold'—slowing conversational momentum and validating the underlying emotional exhaustion before attempting logistics."
-                    </p>
-                  </div>
-
-                  {/* Interpersonal Distortions Grid */}
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-mono tracking-wider font-bold text-brand-green/50 dark:text-brand-cream/50 uppercase">Prevalent Interaction Traps</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                      <div className="bg-white dark:bg-brand-green-dark/50 p-3 rounded-xl border border-brand-green/10 dark:border-brand-gold/10">
-                        <span className="font-extrabold text-brand-gold dark:text-brand-cream">1. Polarized Timelines</span>
-                        <p className="text-[10px] text-brand-green/60 dark:text-brand-cream/60 mt-1 leading-normal">
-                          Configuring schedules as either "entirely ruined" or "completely perfect". Ignores middle-tier compromise levels.
-                        </p>
-                      </div>
-                      <div className="bg-white dark:bg-brand-green-dark/50 p-3 rounded-xl border border-brand-green/10 dark:border-brand-gold/10">
-                        <span className="font-extrabold text-brand-gold dark:text-brand-cream">2. Deflective Intellectualization</span>
-                        <p className="text-[10px] text-brand-green/60 dark:text-brand-cream/60 mt-1 leading-normal">
-                          Retreating into calendar analytics or project metrics as a defense mechanism to avoid stating direct feelings of exhaustion.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Attachment Styles Plotted */}
-                  <div className="flex items-center justify-between p-3.5 bg-white dark:bg-brand-green-dark/40 rounded-xl border border-brand-green/10 dark:border-brand-gold/10 text-xs">
-                    <div>
-                      <span className="text-[9px] font-mono text-brand-green/50 dark:text-brand-cream/50 uppercase block">dyad attachment pattern</span>
-                      <span className="font-extrabold text-brand-green dark:text-[#EEF0EA]">Secure co-regulation (under strain)</span>
-                    </div>
-                    <span className="text-[10px] bg-brand-cream text-stone-900 border border-stone-300 px-2.5 py-0.5 rounded-full font-bold">
-                      Resilient
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-brand-gold/5 border border-brand-gold/15 dark:border-brand-gold/10 rounded-2xl p-5 text-center space-y-2 animate-fadeIn">
-              <Sparkle size={18} className="text-brand-gold mx-auto animate-spin" />
-              <p className="text-xs text-brand-green/70 dark:text-brand-cream/70 italic font-medium">
-                Awaiting folder conversations to initiate psychological trend mapping. Once session recordings are category-allocated here, our AI synthesis engine will plot long-term trends!
-              </p>
-            </div>
+              <ChevronRight size={16} className="text-brand-green/40 dark:text-brand-cream/40 shrink-0" />
+            </button>
           )}
 
           {/* SESSIONS DIRECTORY LIST */}
