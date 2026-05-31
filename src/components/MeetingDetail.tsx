@@ -72,6 +72,7 @@ export default function MeetingDetail() {
     targetTrello,
     voiceSignature,
     ownerName,
+    updateMeeting,
     setActiveTab: setGlobalTab
   } = useMeetLog();
 
@@ -265,6 +266,30 @@ export default function MeetingDetail() {
   // New action item template state
   const [newActionTask, setNewActionTask] = useState("");
   const [newActionAssignee, setNewActionAssignee] = useState("");
+
+  // Speaker → Relations editing: rename a detected speaker. Updates this
+  // meeting's participantsInfo AND relabels matching transcript segments, then
+  // persists — so the renamed person flows into the Relations hub automatically.
+  const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
+  const [editingSpeakerName, setEditingSpeakerName] = useState("");
+
+  const handleRenameSpeaker = (oldName: string, rawNewName: string) => {
+    const newName = rawNewName.trim();
+    setEditingSpeaker(null);
+    setEditingSpeakerName("");
+    if (!meeting || !newName || newName === oldName) return;
+    const oldKey = oldName.trim().toLowerCase();
+    const updated: Meeting = {
+      ...meeting,
+      participantsInfo: (meeting.participantsInfo || []).map((p) =>
+        (p.name || "").trim().toLowerCase() === oldKey ? { ...p, name: newName } : p
+      ),
+      transcript: (meeting.transcript || []).map((seg) =>
+        (seg.speaker || "").trim().toLowerCase() === oldKey ? { ...seg, speaker: newName } : seg
+      ),
+    };
+    updateMeeting(updated);
+  };
 
   // Editing transcript sentence state
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
@@ -2066,7 +2091,29 @@ export default function MeetingDetail() {
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <h5 className="text-xs font-bold text-brand-green dark:text-[#EEF0EA] truncate">{p.name}</h5>
+                          {editingSpeaker === p.name ? (
+                            <input
+                              autoFocus
+                              value={editingSpeakerName}
+                              onChange={(e) => setEditingSpeakerName(e.target.value)}
+                              onBlur={() => handleRenameSpeaker(p.name, editingSpeakerName)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRenameSpeaker(p.name, editingSpeakerName);
+                                if (e.key === "Escape") { setEditingSpeaker(null); setEditingSpeakerName(""); }
+                              }}
+                              className="w-full px-2 py-1 text-xs font-bold bg-white dark:bg-zinc-800 border border-brand-gold/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-gold text-brand-green dark:text-brand-cream"
+                              placeholder="Enter real name"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => { setEditingSpeaker(p.name); setEditingSpeakerName(p.name); }}
+                              className="flex items-center gap-1 group/edit"
+                              title="Rename this speaker"
+                            >
+                              <h5 className="text-xs font-bold text-brand-green dark:text-[#EEF0EA] truncate">{p.name}</h5>
+                              <Edit3 size={11} className="text-brand-green/40 dark:text-brand-cream/40 opacity-0 group-hover/edit:opacity-100 shrink-0" />
+                            </button>
+                          )}
                           <p className="text-[10px] text-brand-green/55 dark:text-brand-cream/55 truncate">
                             {p.role || "Conversation partner"}{p.share ? ` • ${p.share} share` : ""}
                           </p>
