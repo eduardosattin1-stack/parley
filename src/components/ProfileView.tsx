@@ -830,24 +830,20 @@ export default function ProfileView() {
           <div className="space-y-3 p-2 rounded-xl bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/10 dark:border-brand-gold/15">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5 max-w-[80%]">
-                <div className="font-bold text-brand-green dark:text-brand-cream flex items-center gap-1.5">
+                <div className="font-bold text-brand-green/50 dark:text-brand-cream/50 flex items-center gap-1.5">
                   Voice Activation Wake Command
+                  <span className="text-[8px] uppercase font-extrabold tracking-wider bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded">Unavailable</span>
                 </div>
                 <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-tight">
-                  Always-listening background service. Trigger recording using a specific phrase.
+                  Hands-free wake-word recording needs a native app update — browsers/WebViews block background mic access, so this can't reliably start recording yet.
                 </p>
               </div>
               <button
-                onClick={() => setVoiceCommandEnabled(!voiceCommandEnabled)}
-                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 shrink-0 ${
-                  voiceCommandEnabled ? "bg-brand-green dark:bg-brand-gold" : "bg-zinc-200 dark:bg-zinc-800"
-                }`}
+                disabled
+                title="Requires a native app update"
+                className="w-10 h-6 flex items-center rounded-full p-1 bg-zinc-200 dark:bg-zinc-800 opacity-50 cursor-not-allowed shrink-0"
               >
-                <div
-                  className={`bg-white dark:bg-brand-green-dark w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
-                    voiceCommandEnabled ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
+                <div className="bg-white dark:bg-brand-green-dark w-4 h-4 rounded-full shadow-md translate-x-0" />
               </button>
             </div>
 

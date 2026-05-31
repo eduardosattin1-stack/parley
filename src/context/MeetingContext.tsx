@@ -369,8 +369,18 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   const recognitionActiveRef = useRef<boolean>(false);
   const wakeNotificationRef = useRef<any>(null);
 
-  // Background speech recognition wake-word effect
+  // Background speech recognition wake-word effect.
+  // DESCOPED: in a WebView the recognizer can "listen" but cannot start an actual
+  // recording (mic access needs a user gesture, and background capture is blocked),
+  // which produced the confusing "listening but not recording" behavior. The flag
+  // below hard-disables it (and also stops it for anyone who had it persisted on)
+  // until a native wake-word plugin replaces it. The Settings toggle is disabled too.
   useEffect(() => {
+    const WAKE_WORD_ENABLED: boolean = false; // descoped: requires a native plugin
+    if (!WAKE_WORD_ENABLED) {
+      setVoiceStatus("Voice wake-word requires a native app update.");
+      return;
+    }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       if (voiceCommandEnabled) {
