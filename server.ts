@@ -995,7 +995,9 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
         const formData = new FormData();
         formData.append("file", blob, `audio.${fileExt}`);
         formData.append("model", TRANSCRIBE_MODEL);
-        formData.append("response_format", "text");
+        // NOTE: gpt-4o-transcribe rejects the `response_format` argument
+        // ("Unrecognized request argument supplied: response_format"), so we
+        // omit it and use the default JSON body shape: { "text": "..." }.
 
         const transcribeRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
           method: "POST",
@@ -1010,7 +1012,14 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
           throw new Error(`OpenAI ${TRANSCRIBE_MODEL} responded with status ${transcribeRes.status}: ${errText}`);
         }
 
-        transcriptTextForLlm = (await transcribeRes.text()).trim();
+        const rawTranscribe = (await transcribeRes.text()).trim();
+        try {
+          // Default response_format is json -> { text: "..." }.
+          transcriptTextForLlm = (JSON.parse(rawTranscribe).text || "").trim();
+        } catch {
+          // Some deployments return plain text; use it as-is.
+          transcriptTextForLlm = rawTranscribe;
+        }
         if (!transcriptTextForLlm) {
           throw new Error(`OpenAI ${TRANSCRIBE_MODEL} returned an empty transcript.`);
         }
