@@ -72,6 +72,9 @@ export interface Meeting {
   personalAssistant?: boolean;
   personalAssistantOutput?: string;
   personalAssistantActions?: AssistantAction[];
+  // Dialogue segmentation layer (one meeting, grouped segments)
+  conversationSegments?: { title: string; summary: string }[];
+  isMultiDialogue?: boolean;
 }
 
 export interface AssistantAction {

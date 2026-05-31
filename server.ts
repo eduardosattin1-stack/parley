@@ -911,22 +911,98 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
 `;
 
     let transcriptTextForLlm = "";
-    const hasOpenAiKey = process.env.OPENAI_API_KEY && 
-                         process.env.OPENAI_API_KEY !== "MY_OPENAI_API_KEY" && 
+    let diarizedUtterances: { speaker: string; text: string; start: number; end: number }[] = [];
+    const hasOpenAiKey = process.env.OPENAI_API_KEY &&
+                         process.env.OPENAI_API_KEY !== "MY_OPENAI_API_KEY" &&
                          process.env.OPENAI_API_KEY.trim() !== "";
+    const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
+    const hasAssemblyKey = !!assemblyKey && assemblyKey !== "MY_ASSEMBLYAI_API_KEY" && assemblyKey.trim() !== "";
 
-    if (hasOpenAiKey) {
-      console.log("[Server] OPENAI_API_KEY detected. Using OpenAI Whisper for transcription...");
+    // PREFERRED: AssemblyAI for transcription + REAL speaker diarization.
+    // Async (upload -> request -> poll); the keep-alive heartbeat above holds the
+    // connection open. No 25 MB cap, so it handles long open-environment audio.
+    if (hasAssemblyKey && audioData) {
+      try {
+        console.log("[Server] Using AssemblyAI for transcription + diarization...");
+        const audioBuf = Buffer.from(audioData, "base64");
+        const upRes = await fetch("https://api.assemblyai.com/v2/upload", {
+          method: "POST",
+          headers: { authorization: assemblyKey as string },
+          body: audioBuf
+        });
+        if (!upRes.ok) throw new Error(`upload ${upRes.status}: ${await upRes.text()}`);
+        const { upload_url } = await upRes.json() as any;
+
+        const reqRes = await fetch("https://api.assemblyai.com/v2/transcript", {
+          method: "POST",
+          headers: { authorization: assemblyKey as string, "content-type": "application/json" },
+          body: JSON.stringify({ audio_url: upload_url, speaker_labels: true })
+        });
+        if (!reqRes.ok) throw new Error(`request ${reqRes.status}: ${await reqRes.text()}`);
+        const { id: transcriptId } = await reqRes.json() as any;
+
+        const deadline = Date.now() + 5 * 60 * 1000;
+        let tr: any = null;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const pollRes = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
+            headers: { authorization: assemblyKey as string }
+          });
+          tr = await pollRes.json() as any;
+          if (tr.status === "completed") break;
+          if (tr.status === "error") throw new Error(`transcribe error: ${tr.error}`);
+        }
+        if (!tr || tr.status !== "completed") throw new Error("AssemblyAI transcription timed out.");
+
+        if (Array.isArray(tr.utterances) && tr.utterances.length > 0) {
+          diarizedUtterances = tr.utterances.map((u: any) => ({
+            speaker: String(u.speaker),
+            text: String(u.text || ""),
+            start: Number(u.start) || 0,
+            end: Number(u.end) || 0
+          }));
+          transcriptTextForLlm = diarizedUtterances.map((u) => {
+            const t = Math.floor(u.start / 1000);
+            const mm = String(Math.floor(t / 60)).padStart(2, "0");
+            const ss = String(t % 60).padStart(2, "0");
+            return `[${mm}:${ss}] Speaker ${u.speaker}: ${u.text}`;
+          }).join("\n");
+        } else {
+          transcriptTextForLlm = tr.text || "";
+        }
+        console.log(`[Server] AssemblyAI done: ${diarizedUtterances.length} diarized turns.`);
+      } catch (err: any) {
+        console.error("[Server] AssemblyAI transcription failed, falling back:", err?.message || err);
+      }
+    }
+
+    // FALLBACK: OpenAI gpt-4o-transcribe (json/text only, 25 MB cap).
+    const TRANSCRIBE_MODEL = "gpt-4o-transcribe";
+    const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+
+    if (!transcriptTextForLlm && hasOpenAiKey) {
+      console.log(`[Server] OPENAI_API_KEY detected. Using OpenAI ${TRANSCRIBE_MODEL} for transcription...`);
       try {
         const buffer = Buffer.from(audioData, "base64");
-        const fileExt = mimeType.includes("mp3") ? "mp3" : mimeType.includes("wav") ? "wav" : mimeType.includes("m4a") ? "m4a" : "webm";
-        const blob = new Blob([buffer], { type: mimeType });
+        if (buffer.length > MAX_AUDIO_BYTES) {
+          throw new Error(`AUDIO_TOO_LARGE: file is ${(buffer.length / 1024 / 1024).toFixed(1)} MB, but the transcription limit is 25 MB. Please upload a shorter or more compressed recording.`);
+        }
+        // Map the MIME type to an extension the transcription decoder accepts.
+        const mt = (mimeType || "").toLowerCase();
+        const fileExt =
+          mt.includes("mp3") || mt.includes("mpeg") || mt.includes("mpga") ? "mp3" :
+          mt.includes("wav") ? "wav" :
+          mt.includes("m4a") || mt.includes("mp4") || mt.includes("aac") ? "m4a" :
+          mt.includes("ogg") || mt.includes("oga") || mt.includes("opus") ? "ogg" :
+          mt.includes("flac") ? "flac" :
+          "webm";
+        const blob = new Blob([buffer], { type: mimeType || "audio/webm" });
         const formData = new FormData();
         formData.append("file", blob, `audio.${fileExt}`);
-        formData.append("model", "whisper-1");
-        formData.append("response_format", "verbose_json");
+        formData.append("model", TRANSCRIBE_MODEL);
+        formData.append("response_format", "text");
 
-        const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        const transcribeRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -934,34 +1010,29 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
           body: formData,
         });
 
-        if (!whisperRes.ok) {
-          const errText = await whisperRes.text();
-          throw new Error(`OpenAI Whisper API responded with status ${whisperRes.status}: ${errText}`);
+        if (!transcribeRes.ok) {
+          const errText = await transcribeRes.text();
+          throw new Error(`OpenAI ${TRANSCRIBE_MODEL} responded with status ${transcribeRes.status}: ${errText}`);
         }
 
-        const whisperJson = await whisperRes.json() as any;
-        if (whisperJson.segments && whisperJson.segments.length > 0) {
-          transcriptTextForLlm = whisperJson.segments.map((seg: any) => {
-            const formatTime = (secs: number) => {
-              const m = Math.floor(secs / 60).toString().padStart(2, "0");
-              const s = Math.floor(secs % 60).toString().padStart(2, "0");
-              return `${m}:${s}`;
-            };
-            return `[${formatTime(seg.start)} - ${formatTime(seg.end)}] ${seg.text}`;
-          }).join("\n");
-        } else {
-          transcriptTextForLlm = whisperJson.text || "";
+        transcriptTextForLlm = (await transcribeRes.text()).trim();
+        if (!transcriptTextForLlm) {
+          throw new Error(`OpenAI ${TRANSCRIBE_MODEL} returned an empty transcript.`);
         }
-        console.log("[Server] OpenAI Whisper transcription completed successfully.");
+        console.log("[Server] OpenAI transcription completed successfully.");
       } catch (err: any) {
-        console.error("[Server] OpenAI Whisper transcription failed, falling back to Gemini:", err);
+        console.error(`[Server] OpenAI ${TRANSCRIBE_MODEL} transcription failed:`, err);
+        // Size errors are not recoverable by falling back — surface them clearly.
+        if (typeof err?.message === "string" && err.message.startsWith("AUDIO_TOO_LARGE")) {
+          throw new Error(err.message.replace("AUDIO_TOO_LARGE: ", ""));
+        }
       }
     }
 
     if (!transcriptTextForLlm) {
       console.log("[Server] Using Gemini 3.5 Flash for audio transcription...");
       const transResponse = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         // Allow a full verbatim transcript for long (~10 min) recordings.
         config: { maxOutputTokens: 32768 },
         contents: [
@@ -986,12 +1057,93 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
+    // ---- DIALOGUE SEGMENTATION LAYER (one meeting, grouped segments) ----
+    // Decide whether this recording is a single conversation or several distinct
+    // ones, and label each. Runs on OpenAI; the meeting stays one record.
+    // Pause-injection: when we have diarized turns, annotate the silence before
+    // each turn — long gaps are the strongest topic-boundary cue.
+    const segmentationInput = diarizedUtterances.length > 0
+      ? diarizedUtterances.map((u, i) => {
+          const gap = i === 0 ? 0 : Math.max(0, (u.start - diarizedUtterances[i - 1].end) / 1000);
+          const t = Math.floor(u.start / 1000);
+          const mm = String(Math.floor(t / 60)).padStart(2, "0");
+          const ss = String(t % 60).padStart(2, "0");
+          return `[${mm}:${ss}] (pause ${gap.toFixed(1)}s) Speaker ${u.speaker}: ${u.text}`;
+        }).join("\n")
+      : transcriptTextForLlm;
+    let conversationSegments: { title: string; summary: string }[] = [];
+    let isMultiDialogue = false;
+
+    // Preferred segmentation engine: Claude (your chosen model), prompted on the
+    // pause-annotated diarized transcript. Falls back to GPT-4o below on any error.
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const hasAnthropicKey = !!anthropicKey && anthropicKey !== "MY_ANTHROPIC_API_KEY" && anthropicKey.trim() !== "";
+    if (transcriptTextForLlm && hasAnthropicKey) {
+      try {
+        const cRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": anthropicKey as string,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6", // segmentation is a moderate task; bump to claude-opus-4-8 for max quality
+            max_tokens: 2048,
+            system: "You segment a diarized conversation. Decide whether it is ONE continuous conversation or SEVERAL distinct ones (clearly different topics, participants, or settings — e.g. a meeting then an unrelated phone call). Only split on unambiguous breaks; when in doubt, treat it as one. Reply with JSON only, no prose.",
+            messages: [
+              { role: "user", content: `Transcript (the gap before each turn is shown as (pause Xs) — weight unusually long pauses, speaker-set changes, and topic shifts as boundary cues):\n${segmentationInput}\n\nReturn ONLY JSON: {"multipleConversations": boolean, "segments": [{"title": "short label", "summary": "one sentence"}]}. If it is a single conversation, return exactly one segment.` }
+            ]
+          })
+        });
+        if (!cRes.ok) throw new Error(`Claude ${cRes.status}: ${await cRes.text()}`);
+        const cData = await cRes.json() as any;
+        const raw = String(cData?.content?.[0]?.text || "").trim();
+        const match = raw.match(/\{[\s\S]*\}/); // tolerate any stray prose around the JSON
+        const segParsed = JSON.parse(match ? match[0] : raw);
+        if (Array.isArray(segParsed.segments)) {
+          conversationSegments = segParsed.segments
+            .filter((s: any) => s && s.title)
+            .map((s: any) => ({ title: String(s.title), summary: String(s.summary || "") }));
+        }
+        isMultiDialogue = !!segParsed.multipleConversations && conversationSegments.length > 1;
+        console.log(`[Server] Segmentation via Claude: ${isMultiDialogue ? "MULTIPLE" : "single"} (${conversationSegments.length} segment(s)).`);
+      } catch (claudeErr: any) {
+        console.warn("[Server] Claude segmentation failed, falling back to GPT-4o:", claudeErr?.message || claudeErr);
+      }
+    }
+
+    if (conversationSegments.length === 0 && transcriptTextForLlm && hasOpenAiKey) {
+      try {
+        const segRes = await openai.chat.completions.create({
+          model: "gpt-4o",
+          max_completion_tokens: 2048,
+          temperature: 0,
+          messages: [
+            { role: "system", content: "You segment transcripts. Decide whether the transcript is ONE continuous conversation or SEVERAL distinct ones (clearly different topics, participants, or settings — e.g. a meeting followed by an unrelated phone call). Only split when the breaks are unambiguous; when in doubt, treat it as a single conversation. Respond with JSON only." },
+            { role: "user", content: `Transcript (the gap before each turn is shown as (pause Xs) — weight unusually long pauses, speaker-set changes, and topic shifts as boundary cues):\n${segmentationInput}\n\nReturn JSON: {"multipleConversations": boolean, "segments": [{"title": "short label", "summary": "one sentence"}]}. If it is a single conversation, return exactly one segment.` }
+          ],
+          response_format: { type: "json_object" }
+        });
+        const segParsed = JSON.parse(segRes.choices[0].message.content || "{}");
+        if (Array.isArray(segParsed.segments)) {
+          conversationSegments = segParsed.segments
+            .filter((s: any) => s && s.title)
+            .map((s: any) => ({ title: String(s.title), summary: String(s.summary || "") }));
+        }
+        isMultiDialogue = !!segParsed.multipleConversations && conversationSegments.length > 1;
+        console.log(`[Server] Dialogue segmentation: ${isMultiDialogue ? "MULTIPLE" : "single"} (${conversationSegments.length} segment(s)).`);
+      } catch (segErr) {
+        console.warn("[Server] Dialogue segmentation skipped:", segErr);
+      }
+    }
+
     let responseText = "";
     if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "MY_OPENAI_API_KEY" && process.env.OPENAI_API_KEY.trim() !== "") {
-      console.log("[Server] Using OpenAI GPT-4o-mini for analysis...");
+      console.log("[Server] Using OpenAI GPT-4o for analysis...");
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        // Max output headroom (gpt-4o-mini caps at 16384) so long (~10 min)
+        model: "gpt-4o",
+        // Max output headroom (gpt-4o caps at 16384) so long (~10 min)
         // transcripts don't get truncated into invalid JSON.
         max_completion_tokens: 16384,
         messages: [
@@ -1114,7 +1266,7 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
     } else {
       console.log("[Server] Using Gemini 3.5 Flash for analysis...");
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: contents,
         config: {
           systemInstruction: systemPrompt,
@@ -1132,8 +1284,20 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
     }
 
     const cleanJson = JSON.parse(responseText.trim());
+
+    // Personal conversations don't get task/action lists.
+    const primaryClass = String(cleanJson?.classification?.primary || "").toLowerCase();
+    const isPersonal = (project || "").toLowerCase() === "personal" ||
+      /personal|family|friend|social|health|therapy|casual|relationship/.test(primaryClass);
+    if (isPersonal) {
+      cleanJson.actionItems = [];
+      cleanJson.personalAssistantActions = [];
+    }
+
     const finalResult = {
       ...cleanJson,
+      conversationSegments,
+      isMultiDialogue,
       project: project || "General",
       date: new Date().toISOString()
     };

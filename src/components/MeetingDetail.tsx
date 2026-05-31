@@ -92,7 +92,7 @@ export default function MeetingDetail() {
   }
 
   // Segment Tabs: Summary & Topics, Action Items, Transcript
-  const [activeTab, setActiveTab] = useState<"summary" | "insights" | "relations" | "actions" | "transcript">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "insights" | "relations" | "actions" | "transcript" | "actionbridge">("summary");
 
   // Analyst Persona Switcher: "assistant" | "reflections"
   const [analystPersona, setAnalystPersona] = useState<"assistant" | "reflections">("assistant");
@@ -1255,20 +1255,20 @@ export default function MeetingDetail() {
       </div>
 
       {/* Tabs list navigation container */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:hidden" id="detail-nav-tabbar">
+      <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:hidden overflow-x-auto scrollbar-none" id="detail-nav-tabbar">
         <button
           onClick={() => setActiveTab("summary")}
-          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+          className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "summary"
               ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
               : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
           }`}
         >
-          Summary & AI
+          Summary
         </button>
         <button
           onClick={() => setActiveTab("insights")}
-          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+          className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "insights"
               ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
               : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
@@ -1278,7 +1278,7 @@ export default function MeetingDetail() {
         </button>
         <button
           onClick={() => setActiveTab("relations")}
-          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+          className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "relations"
               ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
               : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
@@ -1288,7 +1288,7 @@ export default function MeetingDetail() {
         </button>
         <button
           onClick={() => setActiveTab("actions")}
-          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+          className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "actions"
               ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
               : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
@@ -1298,13 +1298,23 @@ export default function MeetingDetail() {
         </button>
         <button
           onClick={() => setActiveTab("transcript")}
-          className={`flex-1 text-center py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+          className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
             activeTab === "transcript"
               ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
               : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
           }`}
         >
           Transcript ({meeting.transcript.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("actionbridge")}
+          className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
+            activeTab === "actionbridge"
+              ? "border-stone-400 text-stone-900 dark:text-brand-cream dark:border-brand-cream font-black"
+              : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800"
+          }`}
+        >
+          Action Bridge
         </button>
       </div>
 
@@ -1645,6 +1655,27 @@ export default function MeetingDetail() {
         {(activeTab === "summary" || window.matchMedia("print").matches) && (
           <div className="space-y-5 animate-fadeIn" id="detail-tabbox-summary">
               <>
+                {meeting.isMultiDialogue && meeting.conversationSegments && meeting.conversationSegments.length > 1 && (
+                  <div className="bg-brand-cream/10 dark:bg-brand-green-dark border border-brand-gold/20 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Users size={13} className="text-brand-gold" />
+                      <span className="text-[10px] uppercase font-extrabold tracking-widest text-brand-green dark:text-brand-gold font-mono">
+                        {meeting.conversationSegments.length} conversations detected
+                      </span>
+                    </div>
+                    <p className="text-[10.5px] text-brand-green/60 dark:text-brand-cream/60 leading-normal">
+                      This recording looks like several separate conversations:
+                    </p>
+                    <ol className="space-y-1.5 list-decimal list-inside">
+                      {meeting.conversationSegments.map((seg, i) => (
+                        <li key={i} className="text-xs text-brand-green dark:text-[#EEF0EA]">
+                          <span className="font-bold">{seg.title}</span>
+                          {seg.summary ? <span className="text-brand-green/60 dark:text-brand-cream/60"> — {seg.summary}</span> : null}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 {/* Echo Conversation Snapshot & Classification Banner */}
                 {meeting.snapshot && (
                   <div className="bg-gradient-to-r from-brand-cream/20 to-violet-500/10 border border-stone-305 dark:border-stone-800 p-5 rounded-2xl space-y-3.5 shadow-sm" id="echo-snapshot-banner">
@@ -1871,13 +1902,16 @@ export default function MeetingDetail() {
                 </p>
               )}
             </div>
+          </div>
+        )}
 
+        {/* TAB: ACTION BRIDGE (post-meeting actions & automations) */}
+        {(activeTab === "actionbridge" || window.matchMedia("print").matches) && (
+          <div className="space-y-4 animate-fadeIn" id="detail-tabbox-actionbridge">
             {/* Personal Assistant — Brief & Action Bridge.
-                Renders whenever the Personal Assistant lens is active, on any meeting.
                 The brief text only shows when this meeting actually has analysed output;
                 the Action Bridge always shows (uses the meeting's AI actions if present, else defaults). */}
-            {personalAssistant && (
-              <div className="space-y-4" id="analyst-persona-assistant-bridge">
+            <div className="space-y-4" id="analyst-persona-assistant-bridge">
                 {/* Spoken Brief Card — only when this meeting was analysed with the lens on */}
                 {meeting.personalAssistantOutput && (
                   <div className="bg-brand-gold/5 border border-brand-gold/15 p-4.5 rounded-2xl space-y-4 animate-fadeIn">
@@ -2018,7 +2052,12 @@ export default function MeetingDetail() {
                   </div>
                 </div>
               </div>
-            )}
+          </div>
+        )}
+
+        {/* Summary tab — continued (Voiceprint & Tags at the very bottom) */}
+        {(activeTab === "summary" || window.matchMedia("print").matches) && (
+          <div className="space-y-4">
 
             {/* Proposed Voiceprint & Database Memory Updates — img2 (moved to bottom) */}
             {meeting.memoryUpdates && meeting.memoryUpdates.length > 0 && (

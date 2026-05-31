@@ -1375,6 +1375,8 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         reflectionDebrief: rawJson.reflectionDebrief || undefined,
         personalAssistantOutput: rawJson.personalAssistantOutput || undefined,
         personalAssistantActions: rawJson.personalAssistantActions || undefined,
+        conversationSegments: rawJson.conversationSegments || [],
+        isMultiDialogue: !!rawJson.isMultiDialogue,
         isPending: false,
         isFailed: false
       });
@@ -1398,9 +1400,12 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error("Error in AI analysis flow:", e);
+      const detail = e instanceof Error ? e.message : String(e);
+      const usedBase = getNormalizedApiBaseUrl() || "(same-origin)";
+      triggerToast(`AI transcription failed: ${detail}`, "error");
       updateMeeting({
         ...initialMeeting,
-        summary: "The automated speech-to-text transcription could not be completed at this time (perhaps you are offline or the API key is unconfigured). Play the backup audio inside, or click 'Retry AI Transcription' to try again.",
+        summary: `The automated speech-to-text transcription could not be completed.\n\nReason: ${detail}\nEndpoint: ${usedBase}/api/analyze\n\nThis usually means the phone could not reach the backend (wrong or unreachable API URL, offline, or a server error). Play the backup audio inside, or tap 'Retry AI Transcription' to try again.`,
         isPending: false,
         isFailed: true
       });
@@ -1889,14 +1894,19 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         reflectionDebrief: rawJson.reflectionDebrief || undefined,
         personalAssistantOutput: rawJson.personalAssistantOutput || undefined,
         personalAssistantActions: rawJson.personalAssistantActions || undefined,
+        conversationSegments: rawJson.conversationSegments || [],
+        isMultiDialogue: !!rawJson.isMultiDialogue,
         isPending: false,
         isFailed: false
       });
     } catch (error) {
       console.error("Analysis for imported file failed:", error);
+      const detail = error instanceof Error ? error.message : String(error);
+      const usedBase = getNormalizedApiBaseUrl() || "(same-origin)";
+      triggerToast(`AI transcription failed: ${detail}`, "error");
       updateMeeting({
         ...initialMeeting,
-        summary: "The speech-to-text transcript couldn't be generated automatically. But your physical imported file is saved 100% securely inside this device. Tap the 'Retry AI Transcription' button inside to process it again.",
+        summary: `The speech-to-text transcript couldn't be generated automatically.\n\nReason: ${detail}\nEndpoint: ${usedBase}/api/analyze\n\nYour imported file is saved securely on this device. Tap 'Retry AI Transcription' to process it again.`,
         isPending: false,
         isFailed: true
       });
