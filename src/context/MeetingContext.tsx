@@ -1286,6 +1286,16 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         personalAssistantActions: rawJson.personalAssistantActions || undefined,
         conversationSegments: rawJson.conversationSegments || [],
         isMultiDialogue: !!rawJson.isMultiDialogue,
+        // Speaker/participant + structured analysis fields — without these the
+        // Relations hub (which aggregates participantsInfo across meetings) and
+        // the Echo snapshot/decisions UI stay empty.
+        participantsInfo: rawJson.participantsInfo || [],
+        snapshot: rawJson.snapshot || undefined,
+        classification: rawJson.classification || undefined,
+        decisions: rawJson.decisions || [],
+        checklist: rawJson.checklist || [],
+        openQuestions: rawJson.openQuestions || [],
+        memoryUpdates: rawJson.memoryUpdates || [],
         isPending: false,
         isFailed: false
       });
@@ -1815,6 +1825,16 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         personalAssistantActions: rawJson.personalAssistantActions || undefined,
         conversationSegments: rawJson.conversationSegments || [],
         isMultiDialogue: !!rawJson.isMultiDialogue,
+        // Speaker/participant + structured analysis fields — without these the
+        // Relations hub (which aggregates participantsInfo across meetings) and
+        // the Echo snapshot/decisions UI stay empty.
+        participantsInfo: rawJson.participantsInfo || [],
+        snapshot: rawJson.snapshot || undefined,
+        classification: rawJson.classification || undefined,
+        decisions: rawJson.decisions || [],
+        checklist: rawJson.checklist || [],
+        openQuestions: rawJson.openQuestions || [],
+        memoryUpdates: rawJson.memoryUpdates || [],
         isPending: false,
         isFailed: false
       });
