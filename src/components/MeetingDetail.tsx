@@ -72,7 +72,6 @@ export default function MeetingDetail() {
     targetTrello,
     voiceSignature,
     ownerName,
-    updateMeeting,
     setActiveTab: setGlobalTab
   } = useMeetLog();
 
