@@ -1252,8 +1252,9 @@ export default function MeetingDetail() {
         </div>
       </div>
 
-      {/* Tabs list navigation container */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:hidden overflow-x-auto scrollbar-none" id="detail-nav-tabbar">
+      {/* Tabs list navigation container — wrap so all tabs (incl. Action Bridge)
+          are visible on narrow phone screens instead of scrolling off-screen. */}
+      <div className="flex flex-wrap border-b border-zinc-200 dark:border-zinc-800 print:hidden" id="detail-nav-tabbar">
         <button
           onClick={() => setActiveTab("summary")}
           className={`shrink-0 text-center px-4 py-2.5 text-xs font-extrabold tracking-wide uppercase border-b-2 transition-all ${
