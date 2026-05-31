@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMeetLog } from "../context/MeetingContext";
-import { Users, Clock, MessageSquare, ChevronDown, ChevronRight, Folder, Sparkles } from "lucide-react";
+import { Users, Clock, MessageSquare, ChevronDown, ChevronRight, Folder, Sparkles, GitMerge, X } from "lucide-react";
 import { Meeting } from "../types";
 
 interface RelationshipRecord {
@@ -30,8 +30,10 @@ interface RelBuilder {
  * entered by hand: it is derived live from each meeting's participant analysis.
  */
 export default function RelationsView() {
-  const { meetings, ownerName, setSelectedMeetingId } = useMeetLog();
+  const { meetings, ownerName, setSelectedMeetingId, updateMeeting } = useMeetLog();
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Merge mode: when set, the user is choosing who to merge this person INTO.
+  const [mergingFrom, setMergingFrom] = useState<string | null>(null);
 
   const relationships = useMemo<RelationshipRecord[]>(() => {
     const ownerLower = (ownerName || "").trim().toLowerCase();
@@ -79,6 +81,43 @@ export default function RelationsView() {
 
   const fmtDate = (d: string) => (d ? new Date(d).toLocaleDateString() : "—");
   const fmtMin = (sec: number) => `${Math.round(sec / 60)}m`;
+
+  // Merge `sourceName` INTO `targetName`: relabel that person everywhere
+  // (participantsInfo + transcript speakers across every meeting) to the target
+  // name, de-duping any meeting that ends up with the target listed twice, then
+  // persist. The two relationship cards collapse into one in the hub.
+  const handleMerge = (sourceName: string, targetName: string) => {
+    setMergingFrom(null);
+    setExpanded(null);
+    const srcKey = sourceName.trim().toLowerCase();
+    const tgtName = targetName.trim();
+    if (!srcKey || !tgtName || srcKey === tgtName.toLowerCase()) return;
+
+    for (const m of meetings) {
+      const hasSource = (m.participantsInfo || []).some(
+        (p) => (p.name || "").trim().toLowerCase() === srcKey
+      );
+      if (!hasSource) continue;
+
+      // Relabel participants, then collapse duplicates by name.
+      const relabeled = (m.participantsInfo || []).map((p) =>
+        (p.name || "").trim().toLowerCase() === srcKey ? { ...p, name: tgtName } : p
+      );
+      const seen = new Set<string>();
+      const deduped = relabeled.filter((p) => {
+        const k = (p.name || "").trim().toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+      const transcript = (m.transcript || []).map((seg) =>
+        (seg.speaker || "").trim().toLowerCase() === srcKey ? { ...seg, speaker: tgtName } : seg
+      );
+
+      updateMeeting({ ...m, participantsInfo: deduped, transcript });
+    }
+  };
 
   return (
     <div className="pb-28 pt-4 px-4 max-w-xl mx-auto space-y-6" id="relations-view">
@@ -155,6 +194,49 @@ export default function RelationsView() {
                 {/* Expanded — relationship insights over time */}
                 {isOpen && (
                   <div className="border-t border-brand-green/10 dark:border-brand-gold/10 p-4 space-y-3 animate-fadeIn">
+                    {/* Merge control: same person detected under two labels? Fold them together. */}
+                    {mergingFrom === rel.name ? (
+                      <div className="bg-brand-green/[0.04] dark:bg-brand-gold/[0.04] border border-brand-gold/20 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-extrabold tracking-widest text-brand-green dark:text-brand-gold font-mono">
+                            Merge "{rel.name}" into…
+                          </span>
+                          <button onClick={() => setMergingFrom(null)} title="Cancel merge">
+                            <X size={13} className="text-brand-green/40 dark:text-brand-cream/40" />
+                          </button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {relationships.filter((o) => o.name !== rel.name).length === 0 ? (
+                            <p className="text-[11px] text-brand-green/60 dark:text-brand-cream/60 italic">No other people to merge into yet.</p>
+                          ) : (
+                            relationships
+                              .filter((o) => o.name !== rel.name)
+                              .map((o) => (
+                                <button
+                                  key={o.name}
+                                  onClick={() => handleMerge(rel.name, o.name)}
+                                  className="w-full text-left px-3 py-2 bg-white dark:bg-brand-green-dark/80 border border-brand-green/10 dark:border-brand-gold/15 rounded-xl text-xs font-bold text-brand-green dark:text-[#EEF0EA] hover:border-brand-gold/40 transition-all"
+                                >
+                                  {o.name}
+                                  <span className="text-[10px] font-normal text-brand-green/50 dark:text-brand-cream/50"> · {o.meetings.length} talk{o.meetings.length !== 1 ? "s" : ""}</span>
+                                </button>
+                              ))
+                          )}
+                        </div>
+                        <p className="text-[9.5px] text-brand-green/45 dark:text-brand-cream/45 leading-snug">
+                          Everything recorded under "{rel.name}" will be re-credited to the person you pick.
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setMergingFrom(rel.name)}
+                        className="flex items-center gap-1.5 text-[10px] uppercase font-extrabold tracking-wide text-brand-green/60 dark:text-brand-cream/60 hover:text-brand-gold transition-colors"
+                        title="Merge this person with another (same person, two labels)"
+                      >
+                        <GitMerge size={12} /> Merge with another person
+                      </button>
+                    )}
+
                     {/* Derived relationship read */}
                     <div className="bg-brand-gold/5 border border-brand-gold/15 rounded-2xl p-3 space-y-1.5">
                       <div className="flex items-center gap-1.5">
