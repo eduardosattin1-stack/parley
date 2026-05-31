@@ -9,3 +9,6 @@ coverage/
 
 # Antigravity IDE session cache (large, not needed)
 .antigravity/
+
+# built APKs
+*.apk
