@@ -686,14 +686,17 @@ app.post("/api/analyze", async (req, res) => {
       performanceReviewLens,
       difficultConversationDebrief,
       personalAssistant,
-      voiceSignature
+      voiceSignature,
+      // Large-file path: client uploads audio straight to AssemblyAI (bypassing
+      // Cloud Run's 32 MB request cap) and sends only the resulting URL here.
+      assemblyUploadUrl
     } = req.body;
 
     const parsedDuration = Number(durationSec || 0);
-    console.log(`[Server] Received /api/analyze request - Title: "${title}", Project: "${project}", Duration: ${parsedDuration}s`);
+    console.log(`[Server] Received /api/analyze request - Title: "${title}", Project: "${project}", Duration: ${parsedDuration}s${assemblyUploadUrl ? " (pre-uploaded audio URL)" : ""}`);
 
-    // No audio or a recording too short to transcribe — fail honestly, never fabricate.
-    if (!audioData || parsedDuration < 4) {
+    // Need either inline audio or a pre-uploaded AssemblyAI URL, plus real duration.
+    if ((!audioData && !assemblyUploadUrl) || parsedDuration < 4) {
       return res.json({ error: "No audio was captured (or the recording was under 4 seconds), so there is nothing to transcribe." });
     }
 
@@ -980,7 +983,10 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
     const TRANSCRIBE_MODEL = "gpt-4o-transcribe";
     const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
-    if (!transcriptTextForLlm && hasOpenAiKey) {
+    // OpenAI/Gemini fallbacks need the inline base64 audio. On the large-file
+    // path (audio uploaded straight to AssemblyAI), there is no inline audio, so
+    // these fallbacks are skipped — AssemblyAI is the only transcriber for them.
+    if (!transcriptTextForLlm && hasOpenAiKey && audioData) {
       console.log(`[Server] OPENAI_API_KEY detected. Using OpenAI ${TRANSCRIBE_MODEL} for transcription...`);
       try {
         const buffer = Buffer.from(audioData, "base64");
