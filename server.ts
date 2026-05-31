@@ -931,7 +931,7 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
         const reqRes = await fetch("https://api.assemblyai.com/v2/transcript", {
           method: "POST",
           headers: { authorization: assemblyKey as string, "content-type": "application/json" },
-          body: JSON.stringify({ audio_url: upload_url, speaker_labels: true })
+          body: JSON.stringify({ audio_url: upload_url, speaker_labels: true, speech_models: ["universal-2"] })
         });
         if (!reqRes.ok) throw new Error(`request ${reqRes.status}: ${await reqRes.text()}`);
         const { id: transcriptId } = await reqRes.json() as any;
