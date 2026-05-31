@@ -1723,13 +1723,23 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     setActiveTab("home");
 
     try {
-      const b64Data = await convertBlobToBase64(file);
+      // Large imports exceed Cloud Run's ~32 MB request cap when base64-encoded,
+      // so upload straight to AssemblyAI and send only the URL. Small files keep
+      // the base64 path (so the OpenAI/Gemini fallbacks still have the audio).
+      const LARGE_FILE_BYTES = 20 * 1024 * 1024;
+      let assemblyUploadUrl: string | undefined;
+      if (file.size > LARGE_FILE_BYTES) {
+        setProcessingStatus("Uploading large audio file...");
+        assemblyUploadUrl = (await uploadAudioToAssemblyAI(file)) || undefined;
+      }
+      const b64Data = assemblyUploadUrl ? "" : await convertBlobToBase64(file);
       const apiBase = getNormalizedApiBaseUrl();
       const res = await fetch(`${apiBase}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          audioData: b64Data,
+          audioData: b64Data || undefined,
+          assemblyUploadUrl,
           mimeType: file.type || "audio/webm",
           project: activeProjectName,
           durationSec: approximateDuration,
@@ -1951,6 +1961,32 @@ export function useMeetLog() {
     throw new Error("useMeetLog must be used within a MeetingProvider");
   }
   return context;
+}
+
+/**
+ * Large-file path: upload audio straight to AssemblyAI from the client, bypassing
+ * Cloud Run's ~32 MB request cap on /api/analyze. Returns the AssemblyAI upload
+ * URL (which the backend then transcribes), or null if no bundled key or the
+ * upload fails — in which case the caller falls back to the base64 path.
+ *
+ * The key is bundled at build time (VITE_ASSEMBLYAI_API_KEY). This is the
+ * accepted trade-off for a personal/debug build; do not use for a public release.
+ */
+export async function uploadAudioToAssemblyAI(blob: Blob): Promise<string | null> {
+  const key = (import.meta as any).env?.VITE_ASSEMBLYAI_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: { authorization: key, "content-type": "application/octet-stream" },
+      body: blob,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.upload_url || null;
+  } catch {
+    return null;
+  }
 }
 
 export function getNormalizedApiBaseUrl(): string {

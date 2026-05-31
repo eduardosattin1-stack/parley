@@ -916,9 +916,13 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
     // PREFERRED: AssemblyAI for transcription + REAL speaker diarization.
     // Async (upload -> request -> poll); the keep-alive heartbeat above holds the
     // connection open. No 25 MB cap, so it handles long open-environment audio.
-    if (hasAssemblyKey && audioData) {
+    if ((hasAssemblyKey && audioData) || assemblyUploadUrl) {
       try {
         console.log("[Server] Using AssemblyAI for transcription + diarization...");
+        let upload_url = assemblyUploadUrl as string | undefined;
+        // Only upload here when the client sent inline base64 (small files).
+        // Large files arrive already uploaded as assemblyUploadUrl.
+        if (!upload_url) {
         const audioBuf = Buffer.from(audioData, "base64");
         const upRes = await fetch("https://api.assemblyai.com/v2/upload", {
           method: "POST",
@@ -926,7 +930,8 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
           body: audioBuf
         });
         if (!upRes.ok) throw new Error(`upload ${upRes.status}: ${await upRes.text()}`);
-        const { upload_url } = await upRes.json() as any;
+        upload_url = (await upRes.json() as any).upload_url;
+        }
 
         const reqRes = await fetch("https://api.assemblyai.com/v2/transcript", {
           method: "POST",
