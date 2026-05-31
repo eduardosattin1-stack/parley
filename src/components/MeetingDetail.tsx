@@ -290,6 +290,31 @@ export default function MeetingDetail() {
     updateMeeting(updated);
   };
 
+  // Suggest real names for a diarized speaker by scanning the transcript for
+  // proper nouns (e.g. someone says "Thanks, Sarah"). Excludes names already
+  // assigned to other participants and the generic "Speaker N" labels.
+  const suggestNamesForSpeaker = (currentLabel: string): string[] => {
+    if (!meeting) return [];
+    const text = (meeting.transcript || []).map((s) => s.text || "").join(" ");
+    const taken = new Set(
+      (meeting.participantsInfo || [])
+        .map((p) => (p.name || "").trim().toLowerCase())
+        .filter((n) => n && n !== currentLabel.trim().toLowerCase())
+    );
+    const stop = new Set(["I","I'm","The","A","An","And","But","So","Well","Yeah","Yes","No","Okay","OK","Hi","Hey","Hello","Thanks","Thank","Speaker","Today","Tomorrow","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]);
+    const counts = new Map<string, number>();
+    const matches = text.match(/\b[A-Z][a-z]{1,}\b/g) || [];
+    for (const w of matches) {
+      if (stop.has(w)) continue;
+      if (taken.has(w.toLowerCase())) continue;
+      counts.set(w, (counts.get(w) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([name]) => name);
+  };
+
   // Editing transcript sentence state
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [editingSegmentText, setEditingSegmentText] = useState("");
@@ -2091,18 +2116,52 @@ export default function MeetingDetail() {
                         </div>
                         <div className="min-w-0">
                           {editingSpeaker === p.name ? (
-                            <input
-                              autoFocus
-                              value={editingSpeakerName}
-                              onChange={(e) => setEditingSpeakerName(e.target.value)}
-                              onBlur={() => handleRenameSpeaker(p.name, editingSpeakerName)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleRenameSpeaker(p.name, editingSpeakerName);
-                                if (e.key === "Escape") { setEditingSpeaker(null); setEditingSpeakerName(""); }
-                              }}
-                              className="w-full px-2 py-1 text-xs font-bold bg-white dark:bg-zinc-800 border border-brand-gold/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-gold text-brand-green dark:text-brand-cream"
-                              placeholder="Enter real name"
-                            />
+                            <div className="space-y-1.5">
+                              <input
+                                autoFocus
+                                value={editingSpeakerName}
+                                onChange={(e) => setEditingSpeakerName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleRenameSpeaker(p.name, editingSpeakerName);
+                                  if (e.key === "Escape") { setEditingSpeaker(null); setEditingSpeakerName(""); }
+                                }}
+                                className="w-full px-2 py-1 text-xs font-bold bg-white dark:bg-zinc-800 border border-brand-gold/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-gold text-brand-green dark:text-brand-cream"
+                                placeholder="Enter real name"
+                              />
+                              {/* Name suggestions pulled from the transcript */}
+                              {(() => {
+                                const sugg = suggestNamesForSpeaker(p.name);
+                                if (sugg.length === 0) return null;
+                                return (
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className="text-[8.5px] uppercase tracking-wider font-bold text-brand-green/40 dark:text-brand-cream/40 self-center">Heard:</span>
+                                    {sugg.map((name) => (
+                                      <button
+                                        key={name}
+                                        onMouseDown={(e) => { e.preventDefault(); handleRenameSpeaker(p.name, name); }}
+                                        className="px-2 py-0.5 text-[10px] font-bold bg-brand-gold/10 text-brand-green dark:text-brand-gold-bright border border-brand-gold/25 rounded-full hover:bg-brand-gold/20 transition-colors"
+                                      >
+                                        {name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                              <div className="flex gap-2">
+                                <button
+                                  onMouseDown={(e) => { e.preventDefault(); handleRenameSpeaker(p.name, editingSpeakerName); }}
+                                  className="text-[10px] font-extrabold uppercase tracking-wide text-brand-gold hover:underline"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onMouseDown={(e) => { e.preventDefault(); setEditingSpeaker(null); setEditingSpeakerName(""); }}
+                                  className="text-[10px] font-bold uppercase tracking-wide text-brand-green/40 dark:text-brand-cream/40 hover:underline"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
                           ) : (
                             <button
                               onClick={() => { setEditingSpeaker(p.name); setEditingSpeakerName(p.name); }}
