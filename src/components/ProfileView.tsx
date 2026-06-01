@@ -165,29 +165,22 @@ export default function ProfileView() {
       const apiBase = localStorage.getItem("meetlog-api-base") || "";
       const normalizedApiBase = apiBase.trim().replace(/\/+$/, "");
       
-      const res = await fetch(`${normalizedApiBase}/api/analyze`, {
+      // Create a real acoustic voiceprint (pyannote) so Parley can recognize the
+      // owner's voice in future recordings — not just a text hint of what was said.
+      const res = await fetch(`${normalizedApiBase}/api/voiceprint`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audioData: b64Data,
-          mimeType: blob.type || "audio/webm",
-          project: "General",
-          durationSec: 10,
-          title: "Voice Signature Calibration"
-        })
+        body: JSON.stringify({ audioData: b64Data })
       });
 
-      if (!res.ok) throw new Error("Acoustic calibration failed.");
-      const rawJson = await res.json();
-      
-      const segmentsText = (rawJson.transcript || []).map((t: any) => t.text).join(" ") || rawJson.summary || "";
-      if (!segmentsText.trim() || segmentsText.toLowerCase().includes("no spoken words")) {
-        throw new Error("Whisper returned empty calibration signature.");
+      const rawJson = await res.json().catch(() => ({}));
+      if (!res.ok || rawJson.error || !rawJson.voiceprint) {
+        throw new Error(rawJson.error || "Could not create a voiceprint from this clip. Speak clearly for the full 10 seconds and try again.");
       }
 
-      localStorage.setItem("parley-voice-signature", segmentsText);
-      setVoiceSignature(segmentsText);
-      alert("Acoustic voice signature calibrated and active!");
+      localStorage.setItem("parley-voice-signature", rawJson.voiceprint);
+      setVoiceSignature(rawJson.voiceprint);
+      alert("Voice profile trained! Parley will now recognize your voice in recordings.");
     } catch (e: any) {
       console.error(e);
       alert(`Voice profile training failed: ${e.message}`);

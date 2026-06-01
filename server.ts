@@ -667,6 +667,125 @@ function saveDebugOutput(
   }
 }
 
+// ---------------------------------------------------------------------------
+// pyannoteAI voice-ID helpers (real biometric speaker recognition).
+// Flow verified against the live API:
+//   1. POST /v1/media/input { url: "media://key" }  -> { url: presignedPut }
+//   2. PUT  presignedPut  (raw audio bytes)
+//   3. POST /v1/voiceprint { url: "media://key" }   -> job -> output.voiceprint
+//   3'. POST /v1/identify  { url, voiceprints:[{label,voiceprint}], matching }
+//       -> job -> output.identification: [{ speaker, match, confidence }]
+//   4. GET  /v1/jobs/{jobId} until status succeeded|failed
+// pyannote can only fetch its OWN media:// URLs (not AssemblyAI CDN URLs), so we
+// upload the audio to pyannote storage ourselves.
+// ---------------------------------------------------------------------------
+const PYANNOTE_BASE = "https://api.pyannote.ai/v1";
+
+function hasPyannoteKey(): boolean {
+  const k = process.env.PYANNOTE_API_KEY;
+  return !!k && k !== "MY_PYANNOTE_API_KEY" && k.trim() !== "";
+}
+
+async function pyannotePoll(jobId: string, timeoutMs = 4 * 60 * 1000): Promise<any> {
+  const key = process.env.PYANNOTE_API_KEY as string;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const res = await fetch(`${PYANNOTE_BASE}/jobs/${jobId}`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    const data = (await res.json()) as any;
+    if (data.status === "succeeded") return data.output;
+    if (data.status === "failed" || data.status === "canceled") {
+      throw new Error(`pyannote job ${jobId} ${data.status}: ${data.output?.error || ""}`);
+    }
+  }
+  throw new Error(`pyannote job ${jobId} timed out`);
+}
+
+// Upload raw audio to pyannote temp storage; returns the media://key reference.
+async function pyannoteUpload(audioBuf: Buffer): Promise<string> {
+  const key = process.env.PYANNOTE_API_KEY as string;
+  const objectKey = `media://parley-${Date.now()}-${Math.floor(performance.now())}`;
+  const mi = await fetch(`${PYANNOTE_BASE}/media/input`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ url: objectKey }),
+  });
+  if (!mi.ok) throw new Error(`pyannote media/input ${mi.status}: ${await mi.text()}`);
+  const { url: presignedPut } = (await mi.json()) as any;
+  const put = await fetch(presignedPut, {
+    method: "PUT",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: new Uint8Array(audioBuf),
+  });
+  if (!put.ok) throw new Error(`pyannote presigned PUT ${put.status}`);
+  return objectKey;
+}
+
+// Create a reusable voiceprint string from a single-speaker clip.
+async function pyannoteCreateVoiceprint(audioBuf: Buffer): Promise<string> {
+  const key = process.env.PYANNOTE_API_KEY as string;
+  const mediaUrl = await pyannoteUpload(audioBuf);
+  const submit = await fetch(`${PYANNOTE_BASE}/voiceprint`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ url: mediaUrl }),
+  });
+  if (!submit.ok) throw new Error(`pyannote voiceprint ${submit.status}: ${await submit.text()}`);
+  const { jobId } = (await submit.json()) as any;
+  const out = await pyannotePoll(jobId);
+  if (!out?.voiceprint) throw new Error("pyannote voiceprint missing in output");
+  return out.voiceprint as string;
+}
+
+// Identify a known voiceprint inside a recording. pyannote runs its OWN
+// diarization (SPEAKER_00/01…), so its speaker labels don't line up with
+// AssemblyAI's. We therefore return the time ranges (seconds) where the
+// voiceprint matched `label`; the caller maps those onto AssemblyAI's diarized
+// turns by time overlap to decide which AssemblyAI speaker is the owner.
+async function pyannoteIdentifyOwnerSegments(
+  audioBuf: Buffer,
+  label: string,
+  voiceprint: string
+): Promise<{ start: number; end: number }[]> {
+  const key = process.env.PYANNOTE_API_KEY as string;
+  const mediaUrl = await pyannoteUpload(audioBuf);
+  const submit = await fetch(`${PYANNOTE_BASE}/identify`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: mediaUrl,
+      voiceprints: [{ label, voiceprint }],
+      matching: { threshold: 50 },
+    }),
+  });
+  if (!submit.ok) throw new Error(`pyannote identify ${submit.status}: ${await submit.text()}`);
+  const { jobId } = (await submit.json()) as any;
+  const out = await pyannotePoll(jobId);
+  const identification: any[] = out?.identification || [];
+  return identification
+    .filter((seg) => seg.match === label)
+    .map((seg) => ({ start: Number(seg.start) || 0, end: Number(seg.end) || 0 }));
+}
+
+// Voiceprint enrollment endpoint: client posts a base64 clip, we return the
+// voiceprint string for it to store. Key never leaves the server.
+app.post("/api/voiceprint", async (req, res) => {
+  try {
+    if (!hasPyannoteKey()) {
+      return res.status(400).json({ error: "Voice ID is not configured on this server (no PYANNOTE_API_KEY)." });
+    }
+    const { audioData } = req.body || {};
+    if (!audioData) return res.status(400).json({ error: "No audio provided for voice enrollment." });
+    const voiceprint = await pyannoteCreateVoiceprint(Buffer.from(audioData, "base64"));
+    return res.json({ voiceprint });
+  } catch (err: any) {
+    console.error("[Server] Voiceprint enrollment failed:", err?.message || err);
+    return res.status(500).json({ error: err?.message || "Voiceprint enrollment failed." });
+  }
+});
+
 // REST Endpoint for AI Analysis (Transcription + Summary)
 app.post("/api/analyze", async (req, res) => {
   let keepAliveInterval: any;
@@ -689,7 +808,9 @@ app.post("/api/analyze", async (req, res) => {
       voiceSignature,
       // Large-file path: client uploads audio straight to AssemblyAI (bypassing
       // Cloud Run's 32 MB request cap) and sends only the resulting URL here.
-      assemblyUploadUrl
+      assemblyUploadUrl,
+      // Voice ID: the owner's enrolled pyannote voiceprint string (if any).
+      ownerVoiceprint
     } = req.body;
 
     const parsedDuration = Number(durationSec || 0);
@@ -976,6 +1097,61 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
         console.log(`[Server] AssemblyAI done: ${diarizedUtterances.length} diarized turns.`);
       } catch (err: any) {
         console.error("[Server] AssemblyAI transcription failed, falling back:", err?.message || err);
+      }
+    }
+
+    // ---- VOICE ID: relabel the owner's diarized turns by acoustic match ----
+    // Best-effort: if the owner enrolled a voiceprint and we have the audio +
+    // AssemblyAI diarization, ask pyannote which time ranges are the owner, then
+    // relabel whichever AssemblyAI speaker overlaps those ranges most. Any
+    // failure here is swallowed — transcription/analysis proceeds unchanged.
+    if (hasPyannoteKey() && ownerVoiceprint && audioData && diarizedUtterances.length > 0) {
+      try {
+        const ownerLabel = (ownerName && String(ownerName).trim()) || "Me";
+        console.log("[Server] Voice ID: identifying owner via pyannote voiceprint...");
+        const ownerRanges = await pyannoteIdentifyOwnerSegments(
+          Buffer.from(audioData, "base64"),
+          ownerLabel,
+          ownerVoiceprint
+        ); // seconds
+        if (ownerRanges.length > 0) {
+          // Sum, per AssemblyAI speaker, how much of their speech overlaps the
+          // owner's matched ranges. AssemblyAI times are ms; pyannote is seconds.
+          const overlapBySpeaker = new Map<string, number>();
+          for (const u of diarizedUtterances) {
+            const us = u.start / 1000, ue = u.end / 1000;
+            let ov = 0;
+            for (const r of ownerRanges) {
+              ov += Math.max(0, Math.min(ue, r.end) - Math.max(us, r.start));
+            }
+            if (ov > 0) overlapBySpeaker.set(u.speaker, (overlapBySpeaker.get(u.speaker) || 0) + ov);
+          }
+          let ownerSpeaker: string | null = null, best = 0;
+          for (const [spk, ov] of overlapBySpeaker) {
+            if (ov > best) { best = ov; ownerSpeaker = spk; }
+          }
+          if (ownerSpeaker) {
+            // Relabel that speaker as the owner everywhere in the diarized turns
+            // and rebuild the transcript text the LLM analyses.
+            for (const u of diarizedUtterances) {
+              if (u.speaker === ownerSpeaker) u.speaker = ownerLabel;
+            }
+            transcriptTextForLlm = diarizedUtterances.map((u) => {
+              const t = Math.floor(u.start / 1000);
+              const mm = String(Math.floor(t / 60)).padStart(2, "0");
+              const ss = String(t % 60).padStart(2, "0");
+              const who = u.speaker === ownerLabel ? ownerLabel : `Speaker ${u.speaker}`;
+              return `[${mm}:${ss}] ${who}: ${u.text}`;
+            }).join("\n");
+            console.log(`[Server] Voice ID: matched owner to AssemblyAI ${ownerSpeaker} -> "${ownerLabel}".`);
+          } else {
+            console.log("[Server] Voice ID: no AssemblyAI speaker overlapped the owner's voice.");
+          }
+        } else {
+          console.log("[Server] Voice ID: owner voice not detected in this recording.");
+        }
+      } catch (vidErr: any) {
+        console.warn("[Server] Voice ID skipped:", vidErr?.message || vidErr);
       }
     }
 
