@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMeetLog } from "../context/MeetingContext";
-import { Users, Clock, MessageSquare, ChevronDown, ChevronRight, Folder, Sparkles, GitMerge, X } from "lucide-react";
+import { Users, Clock, MessageSquare, ChevronDown, ChevronRight, Folder, Sparkles, GitMerge, X, Edit3, Check } from "lucide-react";
 import { Meeting } from "../types";
 
 interface RelationshipRecord {
@@ -34,6 +34,9 @@ export default function RelationsView() {
   const [expanded, setExpanded] = useState<string | null>(null);
   // Merge mode: when set, the user is choosing who to merge this person INTO.
   const [mergingFrom, setMergingFrom] = useState<string | null>(null);
+  // Inline rename: the person currently being renamed + the draft text.
+  const [renamingName, setRenamingName] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   const relationships = useMemo<RelationshipRecord[]>(() => {
     const ownerLower = (ownerName || "").trim().toLowerCase();
@@ -119,6 +122,31 @@ export default function RelationsView() {
     }
   };
 
+  // Rename a person everywhere: relabel their participantsInfo + transcript
+  // speakers across every meeting they appear in, then persist. The hub
+  // re-aggregates by the new name on the next render.
+  const handleRename = (oldName: string, rawNewName: string) => {
+    setRenamingName(null);
+    setRenameDraft("");
+    const oldKey = oldName.trim().toLowerCase();
+    const newName = rawNewName.trim();
+    if (!oldKey || !newName || newName.toLowerCase() === oldKey) return;
+
+    for (const m of meetings) {
+      const hasPerson = (m.participantsInfo || []).some(
+        (p) => (p.name || "").trim().toLowerCase() === oldKey
+      );
+      if (!hasPerson) continue;
+      const participantsInfo = (m.participantsInfo || []).map((p) =>
+        (p.name || "").trim().toLowerCase() === oldKey ? { ...p, name: newName } : p
+      );
+      const transcript = (m.transcript || []).map((seg) =>
+        (seg.speaker || "").trim().toLowerCase() === oldKey ? { ...seg, speaker: newName } : seg
+      );
+      updateMeeting({ ...m, participantsInfo, transcript });
+    }
+  };
+
   return (
     <div className="pb-28 pt-4 px-4 max-w-xl mx-auto space-y-6" id="relations-view">
       {/* View Header */}
@@ -194,6 +222,45 @@ export default function RelationsView() {
                 {/* Expanded — relationship insights over time */}
                 {isOpen && (
                   <div className="border-t border-brand-green/10 dark:border-brand-gold/10 p-4 space-y-3 animate-fadeIn">
+                    {/* Rename control: fix a wrong/generic label (e.g. "Speaker B" -> a real name). */}
+                    {renamingName === rel.name ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          value={renameDraft}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRename(rel.name, renameDraft);
+                            if (e.key === "Escape") { setRenamingName(null); setRenameDraft(""); }
+                          }}
+                          placeholder="Enter a name"
+                          className="flex-1 min-w-0 px-3 py-1.5 text-xs font-bold bg-white dark:bg-brand-green-dark/80 border border-brand-gold/40 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-gold text-brand-green dark:text-brand-cream"
+                        />
+                        <button
+                          onClick={() => handleRename(rel.name, renameDraft)}
+                          title="Save name"
+                          className="p-1.5 rounded-lg bg-brand-gold/15 text-brand-gold hover:bg-brand-gold/25 transition-colors shrink-0"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={() => { setRenamingName(null); setRenameDraft(""); }}
+                          title="Cancel"
+                          className="p-1.5 rounded-lg text-brand-green/40 dark:text-brand-cream/40 hover:text-brand-green dark:hover:text-brand-cream transition-colors shrink-0"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setRenamingName(rel.name); setRenameDraft(rel.name); setMergingFrom(null); }}
+                        className="flex items-center gap-1.5 text-[10px] uppercase font-extrabold tracking-wide text-brand-green/60 dark:text-brand-cream/60 hover:text-brand-gold transition-colors"
+                        title="Rename this person everywhere"
+                      >
+                        <Edit3 size={12} /> Rename this person
+                      </button>
+                    )}
+
                     {/* Merge control: same person detected under two labels? Fold them together. */}
                     {mergingFrom === rel.name ? (
                       <div className="bg-brand-green/[0.04] dark:bg-brand-gold/[0.04] border border-brand-gold/20 rounded-2xl p-3 space-y-2">
