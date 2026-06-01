@@ -4,7 +4,7 @@ import { deleteAudioBlob, saveAudioBlob, getAudioBlob } from "../utils/audioDb";
 import { sliceSpeakerClip } from "../utils/audioSlice";
 import { hasVoiceprint, saveVoiceprint, renameVoiceprint, allVoiceprints } from "../utils/knownVoiceprints";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, getDoc } from "firebase/firestore";
 import { auth, db, signInWithGoogle, logoutUser, handleFirestoreError, OperationType } from "../utils/firebase";
 
 interface MeetingContextType {
@@ -789,11 +789,54 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Profile doc: restore owner name + voiceprints to this device on sign-in,
+    // so voice ID and the display name follow the account to a new phone. Local
+    // values win only if the cloud doc is empty (first sign-in seeds the cloud).
+    const unsubProfile = onSnapshot(
+      doc(db, "users", uid, "profile", "main"),
+      (snap) => {
+        const data = snap.data() as any;
+        if (!data) return;
+        if (typeof data.ownerName === "string" && data.ownerName) {
+          localStorage.setItem("parley-owner-name", data.ownerName);
+          setOwnerName(data.ownerName);
+        }
+        if (typeof data.voiceSignature === "string" && data.voiceSignature) {
+          localStorage.setItem("parley-voice-signature", data.voiceSignature);
+          setVoiceSignature(data.voiceSignature);
+        }
+        if (typeof data.knownVoiceprints === "string" && data.knownVoiceprints) {
+          localStorage.setItem("parley-known-voiceprints", data.knownVoiceprints);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${uid}/profile/main`);
+      }
+    );
+
     return () => {
       unsubProjects();
       unsubMeetings();
+      unsubProfile();
     };
   }, [user]);
+
+  // Push profile (owner name + voiceprints) to the cloud whenever they change,
+  // so a new device restores them on sign-in. Debounced via the effect deps.
+  useEffect(() => {
+    if (!user) return;
+    const t = setTimeout(() => {
+      const payload = {
+        userId: user.uid,
+        ownerName: ownerName || "",
+        voiceSignature: voiceSignature || "",
+        knownVoiceprints: localStorage.getItem("parley-known-voiceprints") || "{}",
+      };
+      setDoc(doc(db, "users", user.uid, "profile", "main"), payload, { merge: true })
+        .catch((e) => console.warn("Profile sync failed:", e?.message || e));
+    }, 800);
+    return () => clearTimeout(t);
+  }, [user, ownerName, voiceSignature]);
 
   const loginWithGoogle = async () => {
     try {
@@ -1048,6 +1091,14 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       if (res.ok && data.voiceprint) {
         saveVoiceprint(newName, data.voiceprint);
         console.log(`[VoiceID] Enrolled voiceprint for "${newName}".`);
+        // Push the updated voiceprint set to the cloud so it follows the account.
+        if (user) {
+          setDoc(
+            doc(db, "users", user.uid, "profile", "main"),
+            { userId: user.uid, knownVoiceprints: localStorage.getItem("parley-known-voiceprints") || "{}" },
+            { merge: true }
+          ).catch(() => {});
+        }
       }
     } catch (e) {
       console.warn("Speaker voiceprint enrollment skipped:", e);
