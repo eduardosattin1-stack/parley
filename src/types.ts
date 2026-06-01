@@ -75,6 +75,9 @@ export interface Meeting {
   // Dialogue segmentation layer (one meeting, grouped segments)
   conversationSegments?: { title: string; summary: string }[];
   isMultiDialogue?: boolean;
+  // Per-speaker diarized turn timings (ms) for voiceprint auto-enrollment.
+  // Keyed by the speaker label as it appears in the transcript.
+  speakerTimings?: Record<string, { start: number; end: number }[]>;
 }
 
 export interface AssistantAction {

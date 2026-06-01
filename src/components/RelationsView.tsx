@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useMeetLog } from "../context/MeetingContext";
 import { Users, Clock, MessageSquare, ChevronDown, ChevronRight, Folder, Sparkles, GitMerge, X, Edit3, Check } from "lucide-react";
 import { Meeting } from "../types";
+import { renameVoiceprint } from "../utils/knownVoiceprints";
 
 interface RelationshipRecord {
   name: string;
@@ -131,6 +132,9 @@ export default function RelationsView() {
     const oldKey = oldName.trim().toLowerCase();
     const newName = rawNewName.trim();
     if (!oldKey || !newName || newName.toLowerCase() === oldKey) return;
+
+    // Keep any stored voiceprint attached to the new name.
+    renameVoiceprint(oldName, newName);
 
     for (const m of meetings) {
       const hasPerson = (m.participantsInfo || []).some(

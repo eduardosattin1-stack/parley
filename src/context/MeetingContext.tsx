@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { Meeting, Project, ActiveTab, ActionItem, TranscriptSegment } from "../types";
-import { deleteAudioBlob, saveAudioBlob } from "../utils/audioDb";
+import { deleteAudioBlob, saveAudioBlob, getAudioBlob } from "../utils/audioDb";
+import { sliceSpeakerClip } from "../utils/audioSlice";
+import { hasVoiceprint, saveVoiceprint, renameVoiceprint, allVoiceprints } from "../utils/knownVoiceprints";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch, serverTimestamp, getDocs } from "firebase/firestore";
 import { auth, db, signInWithGoogle, logoutUser, handleFirestoreError, OperationType } from "../utils/firebase";
@@ -23,6 +25,7 @@ interface MeetingContextType {
   toggleKeepAlive: (force?: boolean) => void;
   addMeeting: (meeting: Meeting) => void;
   updateMeeting: (meeting: Meeting) => void;
+  enrollSpeakerVoiceprint: (meetingId: string, oldLabel: string, newName: string) => Promise<void>;
   deleteMeeting: (id: string) => void;
   addProject: (project: Project) => void;
   deleteProject: (id: string) => void;
@@ -1009,6 +1012,48 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Auto-enroll a named speaker's voiceprint so they're recognized in future
+  // recordings. Best-effort + fire-and-forget: slices the speaker's longest
+  // clean turn from the stored audio and creates a pyannote voiceprint for it.
+  // `oldLabel` is the label as it appears in this meeting's speakerTimings
+  // (e.g. "B" or "Speaker B"); `newName` is what the user renamed them to.
+  const enrollSpeakerVoiceprint = async (meetingId: string, oldLabel: string, newName: string) => {
+    try {
+      if (!newName.trim()) return;
+      if (hasVoiceprint(newName)) return; // already known
+      const meeting = meetings.find(m => m.id === meetingId);
+      if (!meeting?.speakerTimings) return;
+
+      // speakerTimings is keyed by the label as the server emitted it. The
+      // transcript speaker may be "Speaker B" while timings key is "B" — try both.
+      const timings =
+        meeting.speakerTimings[oldLabel] ||
+        meeting.speakerTimings[oldLabel.replace(/^speaker\s+/i, "")] ||
+        meeting.speakerTimings[newName];
+      if (!timings || timings.length === 0) return;
+
+      const blob = await getAudioBlob(meetingId);
+      if (!blob) return;
+      const clip = await sliceSpeakerClip(blob, timings);
+      if (!clip) return;
+
+      const b64 = await convertBlobToBase64(clip);
+      const apiBase = getNormalizedApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/voiceprint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioData: b64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.voiceprint) {
+        saveVoiceprint(newName, data.voiceprint);
+        console.log(`[VoiceID] Enrolled voiceprint for "${newName}".`);
+      }
+    } catch (e) {
+      console.warn("Speaker voiceprint enrollment skipped:", e);
+    }
+  };
+
   const deleteMeeting = async (id: string) => {
     // Keep track of locally deleted IDs in our ref so snapshot listener doesn't re-create them
     deletedIdsRef.current.add(id);
@@ -1234,6 +1279,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
           ownerRole,
           voiceSignature: voiceSignature || undefined,
           ownerVoiceprint: voiceSignature || undefined,
+          knownVoiceprints: allVoiceprints(),
           statedContext,
           customPrompt,
           cbtPsychologist: cbtPsychologist && cbtProjects.includes(activeProjectName),
@@ -1291,6 +1337,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         personalAssistantOutput: rawJson.personalAssistantOutput || undefined,
         personalAssistantActions: rawJson.personalAssistantActions || undefined,
         conversationSegments: rawJson.conversationSegments || [],
+        speakerTimings: rawJson.speakerTimings || undefined,
         isMultiDialogue: !!rawJson.isMultiDialogue,
         // Speaker/participant + structured analysis fields — without these the
         // Relations hub (which aggregates participantsInfo across meetings) and
@@ -1784,6 +1831,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
           ownerRole,
           voiceSignature: voiceSignature || undefined,
           ownerVoiceprint: voiceSignature || undefined,
+          knownVoiceprints: allVoiceprints(),
           statedContext,
           customPrompt,
           cbtPsychologist: cbtPsychologist && cbtProjects.includes(activeProjectName),
@@ -1841,6 +1889,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         personalAssistantOutput: rawJson.personalAssistantOutput || undefined,
         personalAssistantActions: rawJson.personalAssistantActions || undefined,
         conversationSegments: rawJson.conversationSegments || [],
+        speakerTimings: rawJson.speakerTimings || undefined,
         isMultiDialogue: !!rawJson.isMultiDialogue,
         // Speaker/participant + structured analysis fields — without these the
         // Relations hub (which aggregates participantsInfo across meetings) and
@@ -1907,6 +1956,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         toggleKeepAlive,
         addMeeting,
         updateMeeting,
+        enrollSpeakerVoiceprint,
         deleteMeeting,
         addProject,
         deleteProject,

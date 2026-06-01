@@ -744,11 +744,13 @@ async function pyannoteCreateVoiceprint(audioBuf: Buffer): Promise<string> {
 // AssemblyAI's. We therefore return the time ranges (seconds) where the
 // voiceprint matched `label`; the caller maps those onto AssemblyAI's diarized
 // turns by time overlap to decide which AssemblyAI speaker is the owner.
-async function pyannoteIdentifyOwnerSegments(
+// Identify one OR MORE known voiceprints in a recording. Returns, per label,
+// the time ranges (seconds) where that voiceprint matched. pyannote accepts an
+// array of {label, voiceprint} and reports matches for all of them in one call.
+async function pyannoteIdentifySegments(
   source: Buffer | { mediaUrl: string },
-  label: string,
-  voiceprint: string
-): Promise<{ start: number; end: number }[]> {
+  voiceprints: { label: string; voiceprint: string }[]
+): Promise<Map<string, { start: number; end: number }[]>> {
   const key = process.env.PYANNOTE_API_KEY as string;
   // Either upload the bytes now, or reuse a media:// the client already uploaded.
   const mediaUrl = Buffer.isBuffer(source) ? await pyannoteUpload(source) : source.mediaUrl;
@@ -757,17 +759,22 @@ async function pyannoteIdentifyOwnerSegments(
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       url: mediaUrl,
-      voiceprints: [{ label, voiceprint }],
-      matching: { threshold: 50 },
+      voiceprints,
+      matching: { threshold: 50, exclusive: true },
     }),
   });
   if (!submit.ok) throw new Error(`pyannote identify ${submit.status}: ${await submit.text()}`);
   const { jobId } = (await submit.json()) as any;
   const out = await pyannotePoll(jobId);
   const identification: any[] = out?.identification || [];
-  return identification
-    .filter((seg) => seg.match === label)
-    .map((seg) => ({ start: Number(seg.start) || 0, end: Number(seg.end) || 0 }));
+  const byLabel = new Map<string, { start: number; end: number }[]>();
+  for (const seg of identification) {
+    if (!seg.match) continue;
+    const arr = byLabel.get(seg.match) || [];
+    arr.push({ start: Number(seg.start) || 0, end: Number(seg.end) || 0 });
+    byLabel.set(seg.match, arr);
+  }
+  return byLabel;
 }
 
 // Voiceprint enrollment endpoint: client posts a base64 clip, we return the
@@ -812,6 +819,9 @@ app.post("/api/analyze", async (req, res) => {
       assemblyUploadUrl,
       // Voice ID: the owner's enrolled pyannote voiceprint string (if any).
       ownerVoiceprint,
+      // Voice ID: ALL known voiceprints (owner + named others) as
+      // [{label, voiceprint}] so every recognized person gets relabeled.
+      knownVoiceprints,
       // Large-file path: client pre-uploaded the audio to pyannote storage and
       // sends the media://key here (AssemblyAI URLs aren't re-downloadable).
       pyannoteMediaUrl
@@ -1104,60 +1114,77 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
       }
     }
 
-    // ---- VOICE ID: relabel the owner's diarized turns by acoustic match ----
-    // Best-effort: if the owner enrolled a voiceprint and we have the audio +
-    // AssemblyAI diarization, ask pyannote which time ranges are the owner, then
-    // relabel whichever AssemblyAI speaker overlaps those ranges most. Any
-    // failure here is swallowed — transcription/analysis proceeds unchanged.
-    if (hasPyannoteKey() && ownerVoiceprint && (audioData || pyannoteMediaUrl) && diarizedUtterances.length > 0) {
+    // ---- VOICE ID: relabel diarized turns by acoustic match ----
+    // Build the set of known voiceprints: the owner plus any named others the
+    // client has enrolled. pyannote identifies all of them in one call; we map
+    // each matched person onto whichever AssemblyAI speaker overlaps them most.
+    // Best-effort: any failure is swallowed and analysis proceeds unchanged.
+    const ownerLabel = (ownerName && String(ownerName).trim()) || "Me";
+    const vpList: { label: string; voiceprint: string }[] = [];
+    if (ownerVoiceprint) vpList.push({ label: ownerLabel, voiceprint: ownerVoiceprint });
+    if (Array.isArray(knownVoiceprints)) {
+      for (const v of knownVoiceprints) {
+        if (v && v.label && v.voiceprint && v.label !== ownerLabel) {
+          vpList.push({ label: String(v.label), voiceprint: String(v.voiceprint) });
+        }
+      }
+    }
+    if (hasPyannoteKey() && vpList.length > 0 && (audioData || pyannoteMediaUrl) && diarizedUtterances.length > 0) {
       try {
-        const ownerLabel = (ownerName && String(ownerName).trim()) || "Me";
-        console.log("[Server] Voice ID: identifying owner via pyannote voiceprint...");
+        console.log(`[Server] Voice ID: identifying ${vpList.length} known voice(s) via pyannote...`);
         // Small files: identify from the inline base64 bytes. Large files: the
         // client already uploaded to pyannote, so reuse that media:// reference.
         const source = pyannoteMediaUrl
           ? { mediaUrl: pyannoteMediaUrl as string }
           : Buffer.from(audioData, "base64");
-        const ownerRanges = await pyannoteIdentifyOwnerSegments(
-          source,
-          ownerLabel,
-          ownerVoiceprint
-        ); // seconds
-        if (ownerRanges.length > 0) {
-          // Sum, per AssemblyAI speaker, how much of their speech overlaps the
-          // owner's matched ranges. AssemblyAI times are ms; pyannote is seconds.
+        const rangesByLabel = await pyannoteIdentifySegments(source, vpList); // seconds
+
+        // For each matched person, pick the AssemblyAI speaker with the most
+        // overlap and relabel them. One AssemblyAI speaker can't map to two
+        // people, so claim speakers greedily by strongest overlap.
+        const claimed = new Set<string>();
+        // Order labels by total matched duration (strongest first).
+        const labelsByStrength = [...rangesByLabel.entries()]
+          .map(([label, ranges]) => [label, ranges.reduce((s, r) => s + Math.max(0, r.end - r.start), 0)] as const)
+          .sort((a, b) => b[1] - a[1])
+          .map(([label]) => label);
+
+        for (const label of labelsByStrength) {
+          const ranges = rangesByLabel.get(label) || [];
           const overlapBySpeaker = new Map<string, number>();
           for (const u of diarizedUtterances) {
+            if (claimed.has(u.speaker)) continue;
             const us = u.start / 1000, ue = u.end / 1000;
             let ov = 0;
-            for (const r of ownerRanges) {
-              ov += Math.max(0, Math.min(ue, r.end) - Math.max(us, r.start));
-            }
+            for (const r of ranges) ov += Math.max(0, Math.min(ue, r.end) - Math.max(us, r.start));
             if (ov > 0) overlapBySpeaker.set(u.speaker, (overlapBySpeaker.get(u.speaker) || 0) + ov);
           }
-          let ownerSpeaker: string | null = null, best = 0;
+          let matchSpeaker: string | null = null, best = 0;
           for (const [spk, ov] of overlapBySpeaker) {
-            if (ov > best) { best = ov; ownerSpeaker = spk; }
+            if (ov > best) { best = ov; matchSpeaker = spk; }
           }
-          if (ownerSpeaker) {
-            // Relabel that speaker as the owner everywhere in the diarized turns
-            // and rebuild the transcript text the LLM analyses.
+          if (matchSpeaker) {
             for (const u of diarizedUtterances) {
-              if (u.speaker === ownerSpeaker) u.speaker = ownerLabel;
+              if (u.speaker === matchSpeaker) u.speaker = label;
             }
-            transcriptTextForLlm = diarizedUtterances.map((u) => {
-              const t = Math.floor(u.start / 1000);
-              const mm = String(Math.floor(t / 60)).padStart(2, "0");
-              const ss = String(t % 60).padStart(2, "0");
-              const who = u.speaker === ownerLabel ? ownerLabel : `Speaker ${u.speaker}`;
-              return `[${mm}:${ss}] ${who}: ${u.text}`;
-            }).join("\n");
-            console.log(`[Server] Voice ID: matched owner to AssemblyAI ${ownerSpeaker} -> "${ownerLabel}".`);
-          } else {
-            console.log("[Server] Voice ID: no AssemblyAI speaker overlapped the owner's voice.");
+            claimed.add(matchSpeaker);
+            console.log(`[Server] Voice ID: matched AssemblyAI ${matchSpeaker} -> "${label}".`);
           }
+        }
+
+        if (claimed.size > 0) {
+          // Rebuild the transcript text the LLM analyses, using real names where
+          // matched and "Speaker X" otherwise.
+          const named = new Set(labelsByStrength);
+          transcriptTextForLlm = diarizedUtterances.map((u) => {
+            const t = Math.floor(u.start / 1000);
+            const mm = String(Math.floor(t / 60)).padStart(2, "0");
+            const ss = String(t % 60).padStart(2, "0");
+            const who = named.has(u.speaker) ? u.speaker : `Speaker ${u.speaker}`;
+            return `[${mm}:${ss}] ${who}: ${u.text}`;
+          }).join("\n");
         } else {
-          console.log("[Server] Voice ID: owner voice not detected in this recording.");
+          console.log("[Server] Voice ID: no known voice detected in this recording.");
         }
       } catch (vidErr: any) {
         console.warn("[Server] Voice ID skipped:", vidErr?.message || vidErr);
@@ -1494,10 +1521,20 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
       cleanJson.personalAssistantActions = [];
     }
 
+    // Per-speaker diarized turn timings (ms), so the client can slice a clean
+    // single-speaker clip to auto-enroll that person's voiceprint when named.
+    // Keyed by the final speaker label (real name if voice-ID matched, else the
+    // raw AssemblyAI label like "A"/"B").
+    const speakerTimings: Record<string, { start: number; end: number }[]> = {};
+    for (const u of diarizedUtterances) {
+      (speakerTimings[u.speaker] ||= []).push({ start: u.start, end: u.end });
+    }
+
     const finalResult = {
       ...cleanJson,
       conversationSegments,
       isMultiDialogue,
+      speakerTimings,
       project: project || "General",
       date: new Date().toISOString()
     };

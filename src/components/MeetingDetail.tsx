@@ -50,7 +50,8 @@ export default function MeetingDetail() {
     selectedMeetingId, 
     setSelectedMeetingId, 
     meetings, 
-    updateMeeting, 
+    updateMeeting,
+    enrollSpeakerVoiceprint, 
     deleteMeeting, 
     projects, 
     addProject, 
@@ -288,6 +289,9 @@ export default function MeetingDetail() {
       ),
     };
     updateMeeting(updated);
+    // Auto-enroll this person's voiceprint so they're recognized next time.
+    // Fire-and-forget; uses oldName as the timings key (e.g. "Speaker B"/"B").
+    enrollSpeakerVoiceprint(meeting.id, oldName, newName);
   };
 
   // Suggest real names for a diarized speaker by scanning the transcript for
@@ -1654,11 +1658,20 @@ export default function MeetingDetail() {
                           {p.matchStatus}
                         </span>
                       </div>
-                      {p.role && (
-                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
-                          Role: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{p.role}</span>
-                        </div>
-                      )}
+                      {(() => {
+                        // The owner (you) shows "You"; ignore junk role values
+                        // the model sometimes emits ("Not stated", "Unknown", "Owner").
+                        const isOwner = (p.role || "").toLowerCase() === "owner" ||
+                          (!!ownerName && (p.name || "").trim().toLowerCase() === ownerName.trim().toLowerCase());
+                        const junk = ["", "not stated", "unknown", "n/a", "none", "owner"];
+                        const roleText = isOwner ? "You" : (junk.includes((p.role || "").trim().toLowerCase()) ? "" : p.role);
+                        if (!roleText) return null;
+                        return (
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                            Role: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{roleText}</span>
+                          </div>
+                        );
+                      })()}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[8px] text-stone-500 font-mono font-bold">
                           <span>SPEAK SHARE</span>
