@@ -46,6 +46,7 @@ export default function ProfileView() {
     targetWhatsApp,
     setTargetWhatsApp,
     ownerName,
+    setOwnerName,
     voiceSignature,
     setVoiceSignature,
 
@@ -917,6 +918,23 @@ export default function ProfileView() {
           <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-relaxed font-normal">
             Calibrate a secure acoustic voice signature. This teaches the AI your speaking style, vocabulary baselines, and phrasing phrasing, allowing it to identify and match your name (<strong>{ownerName || "the Owner"}</strong>) in multi-speaker transcripts with maximum precision.
           </p>
+
+          {/* Your name — the label applied to your voice in transcripts/Relations */}
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-wider font-extrabold text-zinc-500 dark:text-brand-cream/70 block">
+              Your Name
+            </label>
+            <input
+              type="text"
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
+              placeholder="e.g. Bruno"
+              className="w-full px-3 py-2 bg-brand-green/5 dark:bg-brand-green-dark/60 border border-brand-green/10 dark:border-brand-gold/15 rounded-xl text-xs text-brand-green dark:text-brand-cream focus:outline-none focus:border-brand-gold"
+            />
+            <p className="text-[9.5px] text-zinc-500 dark:text-brand-cream/55 leading-snug">
+              This is the name your voice is labeled with once recognized. Without it, you appear as "Me".
+            </p>
+          </div>
 
           {voiceSignature ? (
             <div className="bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/10 dark:border-brand-gold/15 p-3 rounded-xl space-y-3 animate-fadeIn">

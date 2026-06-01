@@ -183,7 +183,12 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   };
 
   // AI Context and Custom Prompts metadata states
-  const [ownerName, setOwnerName] = useState<string>("");
+  const [ownerName, setOwnerName] = useState<string>(() => {
+    return localStorage.getItem("parley-owner-name") || "";
+  });
+  useEffect(() => {
+    localStorage.setItem("parley-owner-name", ownerName);
+  }, [ownerName]);
   const [voiceSignature, setVoiceSignature] = useState<string>(() => {
     return localStorage.getItem("parley-voice-signature") || "";
   });
