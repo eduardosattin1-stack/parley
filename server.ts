@@ -745,12 +745,13 @@ async function pyannoteCreateVoiceprint(audioBuf: Buffer): Promise<string> {
 // voiceprint matched `label`; the caller maps those onto AssemblyAI's diarized
 // turns by time overlap to decide which AssemblyAI speaker is the owner.
 async function pyannoteIdentifyOwnerSegments(
-  audioBuf: Buffer,
+  source: Buffer | { mediaUrl: string },
   label: string,
   voiceprint: string
 ): Promise<{ start: number; end: number }[]> {
   const key = process.env.PYANNOTE_API_KEY as string;
-  const mediaUrl = await pyannoteUpload(audioBuf);
+  // Either upload the bytes now, or reuse a media:// the client already uploaded.
+  const mediaUrl = Buffer.isBuffer(source) ? await pyannoteUpload(source) : source.mediaUrl;
   const submit = await fetch(`${PYANNOTE_BASE}/identify`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -810,7 +811,10 @@ app.post("/api/analyze", async (req, res) => {
       // Cloud Run's 32 MB request cap) and sends only the resulting URL here.
       assemblyUploadUrl,
       // Voice ID: the owner's enrolled pyannote voiceprint string (if any).
-      ownerVoiceprint
+      ownerVoiceprint,
+      // Large-file path: client pre-uploaded the audio to pyannote storage and
+      // sends the media://key here (AssemblyAI URLs aren't re-downloadable).
+      pyannoteMediaUrl
     } = req.body;
 
     const parsedDuration = Number(durationSec || 0);
@@ -1031,10 +1035,6 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
 
     let transcriptTextForLlm = "";
     let diarizedUtterances: { speaker: string; text: string; start: number; end: number }[] = [];
-    // The AssemblyAI media URL for this recording, hoisted to function scope so
-    // the voice-ID block can fetch the audio bytes for pyannote even on the
-    // large-file path (where the client sent only a URL, no inline base64).
-    let assemblyAudioUrl: string | undefined;
     const hasOpenAiKey = process.env.OPENAI_API_KEY &&
                          process.env.OPENAI_API_KEY !== "MY_OPENAI_API_KEY" &&
                          process.env.OPENAI_API_KEY.trim() !== "";
@@ -1060,7 +1060,6 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
         if (!upRes.ok) throw new Error(`upload ${upRes.status}: ${await upRes.text()}`);
         upload_url = (await upRes.json() as any).upload_url;
         }
-        assemblyAudioUrl = upload_url;
 
         const reqRes = await fetch("https://api.assemblyai.com/v2/transcript", {
           method: "POST",
@@ -1110,24 +1109,17 @@ If the audio is completely silent, contains only continuous static/low fan hum/a
     // AssemblyAI diarization, ask pyannote which time ranges are the owner, then
     // relabel whichever AssemblyAI speaker overlaps those ranges most. Any
     // failure here is swallowed — transcription/analysis proceeds unchanged.
-    if (hasPyannoteKey() && ownerVoiceprint && (audioData || assemblyAudioUrl) && diarizedUtterances.length > 0) {
+    if (hasPyannoteKey() && ownerVoiceprint && (audioData || pyannoteMediaUrl) && diarizedUtterances.length > 0) {
       try {
         const ownerLabel = (ownerName && String(ownerName).trim()) || "Me";
         console.log("[Server] Voice ID: identifying owner via pyannote voiceprint...");
-        // Get audio bytes: inline base64 for small files, otherwise download the
-        // AssemblyAI upload (fetchable with the AssemblyAI key) for large files.
-        let audioBuf: Buffer;
-        if (audioData) {
-          audioBuf = Buffer.from(audioData, "base64");
-        } else {
-          const dl = await fetch(assemblyAudioUrl as string, {
-            headers: { authorization: assemblyKey as string },
-          });
-          if (!dl.ok) throw new Error(`download audio for voice-ID ${dl.status}`);
-          audioBuf = Buffer.from(await dl.arrayBuffer());
-        }
+        // Small files: identify from the inline base64 bytes. Large files: the
+        // client already uploaded to pyannote, so reuse that media:// reference.
+        const source = pyannoteMediaUrl
+          ? { mediaUrl: pyannoteMediaUrl as string }
+          : Buffer.from(audioData, "base64");
         const ownerRanges = await pyannoteIdentifyOwnerSegments(
-          audioBuf,
+          source,
           ownerLabel,
           ownerVoiceprint
         ); // seconds

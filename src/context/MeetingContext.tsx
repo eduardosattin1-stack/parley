@@ -1749,9 +1749,18 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
       // the base64 path (so the OpenAI/Gemini fallbacks still have the audio).
       const LARGE_FILE_BYTES = 20 * 1024 * 1024;
       let assemblyUploadUrl: string | undefined;
+      let pyannoteMediaUrl: string | undefined;
       if (file.size > LARGE_FILE_BYTES) {
         setProcessingStatus("Uploading large audio file...");
-        assemblyUploadUrl = (await uploadAudioToAssemblyAI(file)) || undefined;
+        // Upload to both services in parallel: AssemblyAI for transcription,
+        // pyannote for voice ID (its upload URLs aren't re-downloadable, so the
+        // client must upload to pyannote directly too).
+        const [aUrl, pUrl] = await Promise.all([
+          uploadAudioToAssemblyAI(file),
+          voiceSignature ? uploadAudioToPyannote(file) : Promise.resolve(null),
+        ]);
+        assemblyUploadUrl = aUrl || undefined;
+        pyannoteMediaUrl = pUrl || undefined;
       }
       const b64Data = assemblyUploadUrl ? "" : await convertBlobToBase64(file);
       const apiBase = getNormalizedApiBaseUrl();
@@ -1761,6 +1770,7 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           audioData: b64Data || undefined,
           assemblyUploadUrl,
+          pyannoteMediaUrl,
           mimeType: file.type || "audio/webm",
           project: activeProjectName,
           durationSec: approximateDuration,
@@ -2016,6 +2026,36 @@ export async function uploadAudioToAssemblyAI(blob: Blob): Promise<string | null
     if (!res.ok) return null;
     const data = await res.json();
     return data.upload_url || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Large-file path for voice ID: upload audio straight to pyannote storage from
+ * the client (AssemblyAI's upload URLs are write-only, so the backend can't
+ * re-download them). Returns a media://key reference the backend passes to
+ * pyannote /identify, or null if no key / upload fails.
+ */
+export async function uploadAudioToPyannote(blob: Blob): Promise<string | null> {
+  const key = (import.meta as any).env?.VITE_PYANNOTE_API_KEY;
+  if (!key) return null;
+  try {
+    const objectKey = `media://parley-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const mi = await fetch("https://api.pyannote.ai/v1/media/input", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: objectKey }),
+    });
+    if (!mi.ok) return null;
+    const { url: presignedPut } = await mi.json();
+    const put = await fetch(presignedPut, {
+      method: "PUT",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: blob,
+    });
+    if (!put.ok) return null;
+    return objectKey;
   } catch {
     return null;
   }
