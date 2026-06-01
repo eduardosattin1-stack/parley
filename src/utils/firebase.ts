@@ -1,6 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Initialize Firebase App
@@ -16,8 +18,23 @@ googleProvider.setCustomParameters({
   prompt: "select_account"
 });
 
-// Sign-in with Google Helper
+// Sign-in with Google Helper.
+// On native (Android/iOS) the Firebase JS popup can't work inside a WebView
+// (Google also blocks OAuth in embedded webviews), so use the native plugin's
+// system account picker, then sign the returned Google credential into the
+// Firebase JS SDK so all existing Firestore/auth-state code keeps working.
+// On the web, fall back to the standard popup.
 export async function signInWithGoogle() {
+  if (Capacitor.isNativePlatform()) {
+    const result = await FirebaseAuthentication.signInWithGoogle();
+    const idToken = result.credential?.idToken;
+    if (!idToken) {
+      throw new Error("Google sign-in did not return a credential.");
+    }
+    const credential = GoogleAuthProvider.credential(idToken);
+    const userCred = await signInWithCredential(auth, credential);
+    return userCred.user;
+  }
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
@@ -27,9 +44,12 @@ export async function signInWithGoogle() {
   }
 }
 
-// Sign-out Helper
+// Sign-out Helper — clear both the native plugin session and the JS SDK.
 export async function logoutUser() {
   try {
+    if (Capacitor.isNativePlatform()) {
+      await FirebaseAuthentication.signOut();
+    }
     await signOut(auth);
   } catch (error) {
     console.error("Firebase Logout error:", error);

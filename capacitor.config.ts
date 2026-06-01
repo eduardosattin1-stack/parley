@@ -6,6 +6,14 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   android: {
     allowMixedContent: true
+  },
+  plugins: {
+    FirebaseAuthentication: {
+      // Use the native Google sign-in flow (system account picker), then sign
+      // the credential into the Firebase JS SDK so existing Firestore code works.
+      skipNativeAuth: false,
+      providers: ['google.com']
+    }
   }
 };
 

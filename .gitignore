@@ -12,3 +12,6 @@ coverage/
 
 # built APKs
 *.apk
+
+# Firebase Android config (environment-specific; add per machine)
+android/app/google-services.json
