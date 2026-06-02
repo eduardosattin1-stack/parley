@@ -2218,9 +2218,14 @@ export async function uploadAudioToPyannote(blob: Blob): Promise<string | null> 
   }
 }
 
+// The deployed production backend (Cloud Run). Used by default so the app works
+// over any wifi/5G with no manual IP entry. A user-set URL still wins (for local
+// dev against a PC on the LAN).
+export const DEFAULT_API_BASE_URL = "https://parley-backend-606056076947.europe-west1.run.app";
+
 export function getNormalizedApiBaseUrl(): string {
   let url = localStorage.getItem("meetlog-api-base") || "";
-  if (!url) return "";
+  if (!url) return DEFAULT_API_BASE_URL;
   url = url.trim().replace(/\/+$/, "");
   const isLocal = /^(https?:\/\/)?(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|localhost)(:\d+)?$/i.test(url);
   if (isLocal) {

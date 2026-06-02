@@ -427,12 +427,12 @@ export default function ProfileView() {
         {/* API Server Base URL Override */}
         <div className="space-y-2 pt-2.5 border-t border-brand-green/10 dark:border-brand-gold/10">
           <div className="flex flex-col gap-1">
-            <h4 className="text-xs font-bold text-brand-green dark:text-brand-cream">Android API Connection</h4>
-            <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70">Specify host PC IP for mobile recording sync (e.g. http://192.168.1.15:3000)</p>
+            <h4 className="text-xs font-bold text-brand-green dark:text-brand-cream">API Connection <span className="text-[9px] font-normal text-zinc-400">(advanced / optional)</span></h4>
+            <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70">Parley uses its secure cloud backend automatically over wifi or mobile data — leave this blank. Only set it to point at a local dev server (e.g. http://192.168.1.15:3000).</p>
           </div>
           <input
             type="text"
-            placeholder="http://192.168.x.x:3000"
+            placeholder="Leave blank — uses cloud automatically"
             value={apiBaseUrl}
             onChange={(e) => {
               setApiBaseUrl(e.target.value);
