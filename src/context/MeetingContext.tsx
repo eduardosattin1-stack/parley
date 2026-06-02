@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { Meeting, Project, ActiveTab, ActionItem, TranscriptSegment } from "../types";
 import { deleteAudioBlob, saveAudioBlob, getAudioBlob } from "../utils/audioDb";
 import { sliceSpeakerClip } from "../utils/audioSlice";
+import { isFarFieldAvailable, startFarFieldRecording, stopFarFieldRecording } from "../utils/farFieldRecorder";
 import { hasVoiceprint, saveVoiceprint, renameVoiceprint, allVoiceprints } from "../utils/knownVoiceprints";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, getDoc } from "firebase/firestore";
@@ -98,6 +99,8 @@ interface MeetingContextType {
   setPreferBluetooth: (val: boolean) => void;
   showInputSource: boolean;
   setShowInputSource: (val: boolean) => void;
+  farFieldEnabled: boolean;
+  setFarFieldEnabled: (val: boolean) => void;
   voiceCommandEnabled: boolean;
   setVoiceCommandEnabled: (val: boolean) => void;
   voicePhrase: string;
@@ -262,6 +265,14 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   const [showInputSource, setShowInputSource] = useState<boolean>(() => {
     return localStorage.getItem("parley-show-input-source") !== "false"; // default true
   });
+  // Far-field mode: native Android recording with the UNPROCESSED audio source
+  // (no AGC/noise-gate) for open-room / multi-speaker capture. Persisted.
+  const [farFieldEnabled, setFarFieldEnabled] = useState<boolean>(() => {
+    return localStorage.getItem("parley-far-field") === "true";
+  });
+  useEffect(() => {
+    localStorage.setItem("parley-far-field", String(farFieldEnabled));
+  }, [farFieldEnabled]);
   const [voiceCommandEnabled, setVoiceCommandEnabled] = useState<boolean>(() => {
     return localStorage.getItem("parley-voice-command-enabled") === "true";
   });
@@ -619,6 +630,8 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
   // Recording audio refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  // True when the current recording session is using the native far-field plugin.
+  const farFieldActiveRef = useRef<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
   
@@ -1478,6 +1491,20 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     finalDurationRef.current = finalDiff;
     setDuration(finalDiff);
 
+    // Far-field native recording: stop, collect the file, then analyze.
+    if (farFieldActiveRef.current) {
+      farFieldActiveRef.current = false;
+      try {
+        const { blob } = await stopFarFieldRecording();
+        audioChunksRef.current = [blob];
+      } catch (err) {
+        console.warn("Far-field stop failed:", err);
+        audioChunksRef.current = [];
+      }
+      handleAnalyzeOutput();
+      return;
+    }
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       try {
         mediaRecorderRef.current.stop();
@@ -1538,6 +1565,29 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     }
 
     audioChunksRef.current = [];
+    farFieldActiveRef.current = false;
+
+    // Far-field mode: use the native UNPROCESSED recorder (no AGC/noise-gate)
+    // for open-room capture. If it isn't available or fails to start, fall
+    // through to the standard WebView MediaRecorder path below.
+    if (farFieldEnabled) {
+      try {
+        if (await isFarFieldAvailable()) {
+          const { source } = await startFarFieldRecording();
+          farFieldActiveRef.current = true;
+          setActiveInputLabel(`Far-field mic (${source})`);
+          setActiveCodec("AAC / Far-field (48kHz, unprocessed)");
+          setRecordingStream(null); // no MediaStream -> waveform uses simulated mode
+          setIsRecording(true);
+          startRecordingTimer();
+          return;
+        }
+      } catch (e) {
+        console.warn("Far-field recording unavailable, falling back to standard mic:", e);
+        triggerToast("Far-field mic unavailable — using standard recording.", "warning");
+        farFieldActiveRef.current = false;
+      }
+    }
 
     try {
       let stream: MediaStream;
@@ -2079,6 +2129,8 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
         setPreferBluetooth,
         showInputSource,
         setShowInputSource,
+        farFieldEnabled,
+        setFarFieldEnabled,
         voiceCommandEnabled,
         setVoiceCommandEnabled,
         voicePhrase,

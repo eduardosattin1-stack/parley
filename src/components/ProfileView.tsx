@@ -31,6 +31,8 @@ export default function ProfileView() {
     setPreferBluetooth,
     showInputSource,
     setShowInputSource,
+    farFieldEnabled,
+    setFarFieldEnabled,
     voiceCommandEnabled,
     setVoiceCommandEnabled,
     voicePhrase,
@@ -763,6 +765,30 @@ export default function ProfileView() {
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Far-field room capture (native Android) */}
+          <div className="flex items-center justify-between p-2 rounded-xl bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/10 dark:border-brand-gold/15">
+            <div className="space-y-0.5 max-w-[80%]">
+              <div className="flex items-center gap-1.5 font-bold text-brand-green dark:text-brand-cream">
+                <Mic size={12} className="text-brand-gold" /> Far-Field Room Capture
+              </div>
+              <p className="text-[10px] text-zinc-500 dark:text-brand-cream/70 leading-tight">
+                Records with the phone's unprocessed mic source (no auto-gain or noise-gate) so distant speakers in an open room aren't gated out. Android app only; falls back to standard recording elsewhere.
+              </p>
+            </div>
+            <button
+              onClick={() => setFarFieldEnabled(!farFieldEnabled)}
+              className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 shrink-0 ${
+                farFieldEnabled ? "bg-brand-green dark:bg-brand-gold" : "bg-zinc-200 dark:bg-zinc-800"
+              }`}
+            >
+              <div
+                className={`bg-white dark:bg-brand-green-dark w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
+                  farFieldEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
 
           {/* Prefer Bluetooth */}
