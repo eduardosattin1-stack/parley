@@ -671,17 +671,16 @@ export function MeetingProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
+  // Always keep a local cache (even when signed in) as a safety net. Previously
+  // this only saved when signed OUT, trusting Firestore while signed in — so if a
+  // cloud write failed, data lived only in volatile memory and was lost on close.
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem("parley-projects-v2", JSON.stringify(projects));
-    }
-  }, [projects, user]);
+    localStorage.setItem("parley-projects-v2", JSON.stringify(projects));
+  }, [projects]);
 
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem("parley-meetings-v2", JSON.stringify(meetings));
-    }
-  }, [meetings, user]);
+    localStorage.setItem("parley-meetings-v2", JSON.stringify(meetings));
+  }, [meetings]);
 
   // Auth listener
   useEffect(() => {
