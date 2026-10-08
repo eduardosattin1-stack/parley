@@ -25,6 +25,9 @@ A estrutura é a mesma, frase por frase. O que mudou é o que não faria sentido
 - **Sol da manhã no lugar de jardim voltado para o sul.** No hemisfério sul, quem procura sol quer face norte ou sol da manhã; a face sul é a que decepciona.
 - **Proposta abaixo do pedido no lugar de lance acima.** Na Holanda se oferece acima do pedido; aqui se negocia para baixo.
 - **WhatsApp no lugar do e-mail** no "Depois da nota" e na dor do corretor ("espalhados pelas conversas de WhatsApp"). O app já tem "Enviar pelo WhatsApp".
-- **As referências holandesas** (Wft 4:23, Kifid) viraram as brasileiras equivalentes; ver a nota sobre as fontes em `listas/README.md`.
+- **As referências holandesas viraram as brasileiras**, conferidas em 8 de outubro de 2026:
+  - Wft 4:23 virou a Res. CNSP 382/2020, art. 2º, VIII (produto e aconselhamento que atendam ao interesse, à necessidade e ao perfil do cliente; vale para intermediários pelo art. 3º). A Res. CNSP 493/2026 consolida as normas de corretores a partir de cerca de 17 de janeiro de 2027: reconferir o artigo nessa data.
+  - "Você guarda o registro por cinco anos" virou recomendação, não obrigação. A Circular SUSEP 605/2020 só obriga o intermediário quando outra norma exige, e o prazo de cinco anos que existe para corretoras é o da lavagem de dinheiro (Lei 9.613/1998, art. 10, §2º).
+  - Kifid virou "seguradora, SUSEP ou Justiça". Não existe ouvidoria vinculante como o Kifid, e o consumidor.gov.br só aceita reclamação contra seguradora, não contra corretor.
 - **Gravação com cliente:** "avise o cliente que está gravando, e para quê", porque a orientação sob a LGPD pede a finalidade, não só o aviso.
 - **A data do exemplo de imóveis** passou para sábado, 3 de outubro: o 4 de outubro do original cai num domingo em 2026.
