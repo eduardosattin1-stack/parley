@@ -15,7 +15,7 @@ Duas profissões, mesma estrutura: um one-pager, um vídeo, mensagens curtas, e 
 
 1. **E-mail pesa pouco.** A conversa da imobiliária e da corretora pequena acontece no WhatsApp, no Instagram e no LinkedIn. O vídeo de noventa segundos com o corretor gravando a visita no carro vai no primeiro contato; o PDF vai quando alguém pede.
 2. **Preço em reais, nunca em euros.** Grátis até 200 minutos por mês, Plus a R$ 29,99, Unlimited a R$ 49,99. Os exemplos dos PDFs também estão em reais.
-3. **Os CRMs são o canal de verdade.** Kenlo, Jetimob e Imobzi no imobiliário; Segfy e Quiver em seguros. Um acordo de indicação com um deles alcança milhares de escritórios de uma vez, e são fornecedores pequenos o bastante para responder um e-mail. É o único lugar onde o e-mail é a primeira escolha.
+3. **Os CRMs são o canal de verdade.** Kenlo, Jetimob e Imobzi no imobiliário; Segfy e Quiver em seguros. Um acordo de indicação com um deles alcança milhares de escritórios de uma vez, e é o único lugar onde o e-mail é a primeira escolha. Duas ressalvas da pesquisa (`listas/README.md`): no imobiliário, Jetimob e Imobzi ainda são tocados pelos fundadores e respondem, mas o PipeImob já vende "pós-visita por áudio"; em seguros, Segfy é da Porto Seguro e Quiver da Evertec, então ali o ciclo é corporativo.
 
 ## O que mudou da versão em inglês para a pt-BR
 

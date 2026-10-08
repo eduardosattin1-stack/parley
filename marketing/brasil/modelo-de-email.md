@@ -56,7 +56,7 @@ Vai para a pessoa de parcerias ou para um dos fundadores, não para o suporte. A
 > Parley Notes · parleynotes.com
 > WhatsApp [+55 ...]
 
-Antes de mandar: confira em `listas/crms_notas.md` se o CRM já tem alguma IA de notas própria. Se tiver, troque o item 1 por "complementar o que vocês já têm no campo, fora do escritório".
+Antes de mandar: confira em `listas/crms_notas.md` o que cada CRM já tem. Nenhum dos cinco faz a nota da visita ou da reunião, mas o PipeImob, concorrente deles, já anuncia "pós-visita por áudio"; para Kenlo, Jetimob e Imobzi vale uma linha a mais: "o PipeImob já oferece isso aos clientes dele; com o Parley vocês oferecem sem construir". Ordem sugerida: Jetimob, Imobzi, Kenlo, Segfy, Quiver.
 
 ---
 
