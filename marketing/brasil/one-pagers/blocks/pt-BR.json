@@ -1,0 +1,244 @@
+{
+  "lang": "pt-BR",
+  "shared": {
+    "brand": "Parley Notes",
+    "url": "PARLEYNOTES.COM",
+    "site": "parleynotes.com",
+    "noteEyebrow": "A nota, como o app entrega",
+    "tabs": [
+      "Resumo",
+      "Transcrição"
+    ],
+    "aiLine": "Escrito por IA, você revisa",
+    "afterHeading": "Depois da nota",
+    "footer": "Exemplo com dados fictícios. O Parley escreve a nota, você confere e guarda o registro."
+  },
+  "professions": {
+    "estate": {
+      "file": "Parley_Notes_para_corretores_de_imoveis",
+      "docTitle": "Parley Notes para corretores de imóveis",
+      "title": [
+        "Parley Notes para ",
+        "corretores de imóveis"
+      ],
+      "subtitle": "Grave trinta segundos depois da visita. O Parley escreve o retorno, com os preços e os combinados.",
+      "sections": [
+        {
+          "num": "01",
+          "eyebrow": "Depois da visita",
+          "heading": "Seis visitas, e o retorno às nove da noite.",
+          "lede": [
+            "O vendedor quer resposta no mesmo dia.",
+            "O perfil da busca muda a cada imóvel."
+          ],
+          "bullets": [
+            "O que o cliente realmente disse não fica escrito em lugar nenhum.",
+            "Preços, condomínio e promessas ficam espalhados pelas conversas de WhatsApp.",
+            "No dia seguinte, três imóveis parecem iguais."
+          ]
+        },
+        {
+          "num": "02",
+          "eyebrow": "Como funciona",
+          "heading": "Trinta segundos de fala bastam.",
+          "steps": [
+            "Grave um áudio curto depois da visita, no carro. Só você, sem precisar de conversa.",
+            "O Parley escreve o retorno em português, no formato mostrado aqui.",
+            "Você lê e encaminha, ou cola no seu CRM."
+          ]
+        },
+        {
+          "num": "03",
+          "eyebrow": "Bom saber",
+          "heading": "O que ele faz e o que não faz.",
+          "bullets": [
+            "Funciona no celular, no notebook e no navegador.",
+            "Também grava a conversa com o cliente, se você preferir. Avise o cliente que está gravando, e para quê.",
+            "Preço pedido, condomínio, IPTU e orçamento saem exatamente como você falou.",
+            "Armazenamento na União Europeia."
+          ]
+        }
+      ],
+      "note": {
+        "title": "Visitas de sábado, família Nascimento",
+        "meta": "Sáb 3 out · 2 visitas · Busca Nascimento",
+        "summary": "Primeiro vimos o apartamento da Rua Joaquim Távora, 812, pedindo R$ 780.000. Esse decepcionou pela face sul, sem sol, e pelo estado das esquadrias. Depois vimos o da Rua Capote Valente, 435, pedindo R$ 850.000, com condomínio de R$ 1.380 por mês. Esse agradou pela luz e pela varanda, mas a cozinha vai ter que ser refeita.",
+        "groups": [
+          {
+            "label": "Necessidades",
+            "items": [
+              {
+                "t": "Três dormitórios.",
+                "tag": "essencial"
+              },
+              {
+                "t": "Sol da manhã.",
+                "tag": "essencial"
+              },
+              {
+                "t": "No máximo dez minutos até a escola.",
+                "tag": "essencial"
+              },
+              {
+                "t": "Duas vagas de garagem.",
+                "tag": "desejável"
+              }
+            ]
+          },
+          {
+            "label": "Orçamento",
+            "items": [
+              {
+                "t": "Até R$ 900.000.",
+                "m": "O banco pré-aprovou um financiamento de R$ 650.000 e a entrada vem do FGTS. Uma proposta até 5% abaixo do pedido está em discussão."
+              }
+            ]
+          },
+          {
+            "label": "Objeções",
+            "items": [
+              {
+                "b": "A cozinha precisa de reforma.",
+                "m": "O cliente estima R$ 45.000. Combinado: pedir um orçamento."
+              },
+              {
+                "b": "Condomínio mais alto do que o esperado.",
+                "m": "Combinado: pedir as contas e a previsão orçamentária do condomínio."
+              }
+            ]
+          },
+          {
+            "label": "Tarefas",
+            "kind": "tasks",
+            "items": [
+              {
+                "t": "Pedir à imobiliária do vendedor a previsão orçamentária e as atas das assembleias do condomínio.",
+                "m": "Segunda."
+              },
+              {
+                "t": "Marcar a segunda visita na Rua Capote Valente, 435.",
+                "m": "Esta semana."
+              },
+              {
+                "t": "Encontrar mais dois imóveis dentro do orçamento com sol da manhã."
+              }
+            ]
+          }
+        ],
+        "chip": "Visita de imóvel"
+      },
+      "after": [
+        "Mande o retorno pelo WhatsApp para o proprietário ou para o seu cliente.",
+        "Coloque as tarefas na sua lista, com data.",
+        "Pergunte às suas notas depois: quem queria imóvel com sol da manhã."
+      ],
+      "pilot": {
+        "heading": "Piloto para dez imobiliárias",
+        "text": "Três meses grátis. Em troca, peço vinte minutos por mês: o que funciona e o que não funciona."
+      }
+    },
+    "insurance": {
+      "file": "Parley_Notes_para_corretores_de_seguros",
+      "docTitle": "Parley Notes para corretores de seguros",
+      "title": [
+        "Parley Notes para ",
+        "corretores de seguros"
+      ],
+      "subtitle": "Você conduz a conversa. O Parley escreve o registro, num formato que um revisor entende sem ter estado lá.",
+      "sections": [
+        {
+          "num": "01",
+          "eyebrow": "Depois da reunião",
+          "heading": "A reunião é a parte fácil. O registro, não.",
+          "lede": [
+            "Você tem uma boa conversa de consultoria na mesa do cliente. Depois, digita tudo à noite."
+          ],
+          "bullets": [
+            "A recomendação precisa partir do perfil e das necessidades do cliente (Resolução CNSP 382/2020).",
+            "Você guarda o registro por cinco anos.",
+            "Se a reclamação chegar ao Procon ou ao consumidor.gov.br, esse registro é a sua prova."
+          ]
+        },
+        {
+          "num": "02",
+          "eyebrow": "Como funciona",
+          "heading": "Grave, leia, cole.",
+          "steps": [
+            "Comece a gravar e avise o cliente que está gravando.",
+            "O Parley escreve a nota em português, no formato mostrado aqui.",
+            "Você lê, ajusta e cola no seu sistema de gestão."
+          ]
+        },
+        {
+          "num": "03",
+          "eyebrow": "Bom saber",
+          "heading": "O que ele faz e o que não faz.",
+          "bullets": [
+            "Funciona no celular, no notebook e no navegador.",
+            "Nenhum robô na reunião. Você grava no seu próprio aparelho.",
+            "Em seguro de vida e de renda, o Parley registra só que as perguntas de saúde foram feitas e respondidas, nunca as respostas.",
+            "Armazenamento na União Europeia.",
+            "O Parley não substitui o seu sistema de gestão. O registro continua seu."
+          ]
+        }
+      ],
+      "note": {
+        "title": "Reunião de consultoria, família Duarte",
+        "meta": "Ter 6 out · 48 min · Pasta Duarte",
+        "summary": "O cliente quer proteger a renda em caso de afastamento por doença ou acidente e atualizar o seguro residencial depois da reforma. A recomendação é o seguro de vida com DIT da Seguradora A, com franquia de 15 dias e diária de R$ 400, porque a diária cobre as despesas fixas que o cliente informou. O cliente recusou a cobertura adicional de acidentes pessoais e decide na semana de 13 de outubro sobre a importância segurada maior do residencial. As perguntas de saúde foram feitas e respondidas.",
+        "groups": [
+          {
+            "label": "Opções consideradas",
+            "items": [
+              {
+                "b": "Seguradora A, vida com DIT, R$ 289 por mês.",
+                "m": "Franquia de 15 dias, diária de R$ 400. Recomendada: a diária cobre as despesas fixas que o cliente informou."
+              },
+              {
+                "b": "Seguradora B, vida com DIT, R$ 236 por mês.",
+                "m": "Franquia de 30 dias. Não recomendada: um mês sem renda."
+              },
+              {
+                "b": "Seguradora C, residencial, R$ 58 por mês.",
+                "m": "Importância segurada de R$ 450.000, valor de antes da reforma."
+              }
+            ]
+          },
+          {
+            "label": "Tarefas",
+            "kind": "tasks",
+            "items": [
+              {
+                "t": "O cliente envia as duas últimas declarações de imposto de renda.",
+                "m": "Até 10 de outubro."
+              },
+              {
+                "t": "Pedir cotação do residencial com importância segurada de R$ 600.000."
+              },
+              {
+                "t": "Enviar a proposta do seguro de vida até 20 de outubro, com início de vigência em 1º de novembro."
+              }
+            ]
+          },
+          {
+            "label": "Questões em aberto",
+            "items": [
+              "O escritório em casa entra no residencial ou pede um seguro empresarial.",
+              "Se o cliente ainda vai querer a cobertura de acidentes pessoais mais tarde."
+            ]
+          }
+        ],
+        "chip": "Cotação de seguro"
+      },
+      "after": [
+        "Mande o resumo para o cliente por e-mail ou pelo WhatsApp.",
+        "Coloque as tarefas na sua lista, com data.",
+        "Pergunte às suas notas depois: quais clientes ainda devem documentos."
+      ],
+      "pilot": {
+        "heading": "Piloto para dez corretoras",
+        "text": "Três meses grátis. Em troca, peço vinte minutos por mês: o que funciona e o que não funciona."
+      }
+    }
+  }
+}

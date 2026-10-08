@@ -11,3 +11,5 @@
 *.apk binary
 *.keystore binary
 *.jar binary
+*.pdf binary
+*.ttf binary

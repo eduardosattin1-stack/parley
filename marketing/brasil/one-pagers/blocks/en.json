@@ -1,0 +1,185 @@
+{
+  "lang": "en",
+  "shared": {
+    "brand": "Parley Notes",
+    "url": "PARLEYNOTES.COM",
+    "site": "parleynotes.com",
+    "noteEyebrow": "The note, as the app delivers it",
+    "tabs": ["Summary", "Transcript"],
+    "aiLine": "Written by AI, you review it",
+    "afterHeading": "After the note",
+    "footer": "Example with fictional data. Parley writes the note, you check it and keep the file."
+  },
+  "professions": {
+    "estate": {
+      "file": "Parley_Notes_for_estate_agents",
+      "docTitle": "Parley Notes for estate agents",
+      "title": ["Parley Notes for ", "estate agents"],
+      "subtitle": "Record thirty seconds after the viewing. Parley writes the feedback, with the prices and the agreements in it.",
+      "sections": [
+        {
+          "num": "01",
+          "eyebrow": "After the viewing",
+          "heading": "Six viewings, and the feedback at nine in the evening.",
+          "lede": ["The seller wants an answer the same day.", "The brief shifts with every property."],
+          "bullets": [
+            "What the client actually said is written down nowhere.",
+            "Prices, service charges and promises sit scattered across chat messages.",
+            "By the next day three properties look the same."
+          ]
+        },
+        {
+          "num": "02",
+          "eyebrow": "How it works",
+          "heading": "Thirty seconds of talking is enough.",
+          "steps": [
+            "Record a short memo after the viewing, in the car. Just you, no conversation needed.",
+            "Parley writes the feedback in Dutch or English, in the form shown here.",
+            "You read it and send it on, or paste it into your CRM."
+          ]
+        },
+        {
+          "num": "03",
+          "eyebrow": "Good to know",
+          "heading": "What it does and does not do.",
+          "bullets": [
+            "Works on your phone, your laptop and in the browser.",
+            "It records the conversation with the client too, if you prefer that. Tell the client you are recording.",
+            "Asking prices, service charges and budgets come through exactly as you say them.",
+            "Storage in the EU."
+          ]
+        }
+      ],
+      "note": {
+        "title": "Saturday viewings, the Okafor family",
+        "meta": "Sat 4 Oct · 2 viewings · Okafor search",
+        "summary": "First we saw Lijsterstraat 14, asking price EUR 475,000. That one disappointed because of the north facing garden and the state of the window frames. Then Van Heemskerckkade 7, asking price EUR 525,000 with a service charge of EUR 185 a month. That one landed well for the light and the balcony, but the kitchen has to go.",
+        "groups": [
+          {
+            "label": "Needs",
+            "items": [
+              { "t": "Three bedrooms.", "tag": "Must have" },
+              { "t": "Outdoor space facing south.", "tag": "Must have" },
+              { "t": "Within a ten minute cycle of school.", "tag": "Must have" },
+              { "t": "Storage for two bikes.", "tag": "Nice to have" }
+            ]
+          },
+          {
+            "label": "Budget",
+            "items": [
+              { "t": "Up to EUR 540,000.", "m": "The mortgage adviser confirmed EUR 560,000. Bidding up to 5 percent over is open for discussion." }
+            ]
+          },
+          {
+            "label": "Objections",
+            "items": [
+              { "b": "The kitchen needs replacing.", "m": "Client estimates EUR 20,000. Agreed: get a quote." },
+              { "b": "Service charge higher than expected.", "m": "Agreed: request the accounts and the maintenance plan." }
+            ]
+          },
+          {
+            "label": "Action items",
+            "kind": "tasks",
+            "items": [
+              { "t": "Request the maintenance plan and the owners association minutes from the selling agent.", "m": "Monday." },
+              { "t": "Book a second viewing at Van Heemskerckkade 7.", "m": "This week." },
+              { "t": "Find two more homes within budget with a south facing garden." }
+            ]
+          }
+        ],
+        "chip": "Property viewing"
+      },
+      "after": [
+        "Send the feedback as an email to the seller or to your client.",
+        "Put the action items on your task list, with a date.",
+        "Ask your own notes later: who was looking for a south facing garden."
+      ],
+      "pilot": {
+        "heading": "Pilot for ten offices",
+        "text": "Three months free. In return I ask for twenty minutes a month: what works and what does not."
+      }
+    },
+    "insurance": {
+      "file": "Parley_Notes_for_insurance_brokers",
+      "docTitle": "Parley Notes for insurance brokers",
+      "title": ["Parley Notes for ", "insurance brokers"],
+      "subtitle": "You have the conversation. Parley writes the file note, in the form a reviewer can read cold.",
+      "sections": [
+        {
+          "num": "01",
+          "eyebrow": "After the meeting",
+          "heading": "The meeting is the easy part. The file is not.",
+          "lede": ["You have a good advice conversation at the client's table. Then you type it up in the evening."],
+          "bullets": [
+            "The advice has to rest on the client profile and be motivated (Wft 4:23).",
+            "You keep the file for five years.",
+            "If a complaint reaches Kifid, that file is your evidence."
+          ]
+        },
+        {
+          "num": "02",
+          "eyebrow": "How it works",
+          "heading": "Record, read, paste.",
+          "steps": [
+            "Start the recording and tell the client you are recording.",
+            "Parley writes the note in Dutch or English, in the form shown here.",
+            "You read it, adjust it and paste it into your advice software."
+          ]
+        },
+        {
+          "num": "03",
+          "eyebrow": "Good to know",
+          "heading": "What it does and does not do.",
+          "bullets": [
+            "Works on your phone, your laptop and in the browser.",
+            "No bot in the meeting. You record on your own device.",
+            "For life and income cover, Parley records only that the health questions were asked and answered, never the answers themselves.",
+            "Storage in the EU.",
+            "Parley does not replace your advice software. The file stays yours."
+          ]
+        }
+      ],
+      "note": {
+        "title": "Advice meeting, the Kramer family",
+        "meta": "Tue 6 Oct · 48 min · Kramer file",
+        "summary": "The client wants to top up income in case of disability and to reinsure the contents after the renovation. The recommendation is the income protection policy from insurer A, with a 90 day waiting period and an end age of 67, because the payout matches the fixed costs the client named. The client turns down the additional accident cover and will decide in the week of 13 October about the higher contents sum. Health questions were asked and answered.",
+        "groups": [
+          {
+            "label": "Options considered",
+            "items": [
+              { "b": "Insurer A, income protection, EUR 212 a month.", "m": "90 day wait, end age 67. Recommended: the payout covers the fixed costs the client named." },
+              { "b": "Insurer B, income protection, EUR 188 a month.", "m": "180 day wait. Not recommended: six months without income." },
+              { "b": "Insurer C, contents, EUR 24 a month.", "m": "Sum insured EUR 95,000, which is before the renovation." }
+            ]
+          },
+          {
+            "label": "Action items",
+            "kind": "tasks",
+            "items": [
+              { "t": "Client sends the last two annual accounts.", "m": "Before 10 October." },
+              { "t": "Request a contents quote with a sum insured of EUR 120,000." },
+              { "t": "Submit the income protection application before 20 October, start date 1 November." }
+            ]
+          },
+          {
+            "label": "Open questions",
+            "items": [
+              "Does the home office fall under contents or under business cover.",
+              "Whether the client still wants the accident cover later."
+            ]
+          }
+        ],
+        "chip": "Needs and quote"
+      },
+      "after": [
+        "Send the summary to the client as an email.",
+        "Put the action items on your task list, with a date.",
+        "Ask your own notes later: which clients still owe documents."
+      ],
+      "pilot": {
+        "heading": "Pilot for ten offices",
+        "text": "Three months free. In return I ask for twenty minutes a month: what works and what does not."
+      }
+    }
+  }
+}
