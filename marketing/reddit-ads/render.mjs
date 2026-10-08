@@ -6,6 +6,7 @@ const jobs = [
   ['ask', 960, 1200, 1, '4x5-ask-parley'],
   ['present', 960, 1200, 1, '4x5-be-present'],
   ['formats', 1200, 1200, 1, '1x1-notes-fit-occasion'],
+  ['hub', 960, 1200, 1, '4x5-conversation-hub'],
   ['decision', 1000, 524, 2, '1.91x1-never-lose-a-decision'],
 ];
 const browser = await chromium.launch();
