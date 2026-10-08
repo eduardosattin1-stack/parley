@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{--green:#223f2b;--deep:#19291f;--cream:#eef0e9;--ink:#1f3d29;--gold:#c9a64c;--goldtext:#b8963f;--muted:#6b7a6f;--paper:#fff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Space Grotesk',sans-serif;overflow:hidden;position:relative;-webkit-font-smoothing:antialiased}
+.serif{font-family:'Playfair Display',serif}
+.mono{font-family:'JetBrains Mono',monospace}
+.brand{display:flex;align-items:center;gap:16px;font-family:'Playfair Display',serif;font-weight:700;letter-spacing:-.01em}
+.logo{position:relative;border-radius:22%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:800}
+.logo{text-indent:-.18em;padding-top:.06em}
+.logo i{position:absolute;top:9%;right:8%;width:26%;height:19%;background:var(--gold);border-radius:4px}
+.logo i:after{content:"";position:absolute;left:14%;bottom:-35%;border-left:5px solid var(--gold);border-bottom:5px solid transparent}
+.dark .logo{background:var(--cream);color:var(--ink)} .light .logo{background:var(--ink);color:var(--cream)}
+.btn{background:var(--gold);color:var(--ink);font-weight:700;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.label{font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--goldtext)}
+.wm{position:absolute;font-family:'Playfair Display',serif;font-weight:800;color:rgba(255,255,255,.045);line-height:1;pointer-events:none}
